@@ -8,6 +8,7 @@ public class IsTakipSistemiBackendApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(IsTakipSistemiBackendApplication.class, args);
+        System.out.println("IsTakipSistemiBackendApplication started");
 	}
 
 }
