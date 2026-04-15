@@ -1,0 +1,20 @@
+# IntelliJ
+.idea/
+*.iml
+
+# VS Code / Cursor
+.vscode/
+
+# Node
+node_modules/
+dist/
+build/
+
+# Java / Maven
+target/
+
+# Env
+.env
+
+# OS
+.D
