@@ -1,0 +1,17 @@
+package com.dilekkaraca.is_takip_sistemi_backend.stage.repository;
+
+import com.dilekkaraca.is_takip_sistemi_backend.project.entity.Project;
+import com.dilekkaraca.is_takip_sistemi_backend.stage.entity.Stage;
+import com.dilekkaraca.is_takip_sistemi_backend.stage.enums.StageStatus;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+
+public interface StageRepository extends JpaRepository<Stage, Long> {
+
+    List<Stage> findByProject(Project project);
+
+    List<Stage> findByProjectId(Long projectId);
+
+    List<Stage> findByStatus(StageStatus status);
+}
