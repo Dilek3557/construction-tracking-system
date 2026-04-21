@@ -344,8 +344,8 @@ export default function App() {
   }, [duyuru.revision]);
 
   const handleGenelNotSend = useCallback(() => {
-    if (role !== 'personel' || !genelNotDraft.trim()) return;
-    const yazar = session?.userLabel?.trim() || NAME_DILEK;
+    if ((role !== 'personel' && role !== 'yonetici') || !genelNotDraft.trim()) return;
+    const yazar = role === 'yonetici' ? NAME_ADMIN : session?.userLabel?.trim() || NAME_DILEK;
     setGenelNotlar((prev) => [{ id: createId('gn'), yazar, metin: genelNotDraft.trim(), zaman: Date.now() }, ...prev]);
     setGenelNotDraft('');
   }, [role, genelNotDraft, session?.userLabel]);
@@ -509,7 +509,6 @@ export default function App() {
 
               <GeneralNotesCard
                 notes={genelNotlar}
-                role={role}
                 draft={genelNotDraft}
                 onDraftChange={setGenelNotDraft}
                 onSend={handleGenelNotSend}
