@@ -21,10 +21,10 @@ export function projectHasKritikStage(project: Pick<Project, 'stages'>): boolean
   return (project.stages ?? []).some((s) => isKritikStage(s));
 }
 
-/** Tablo satırı: proje veya herhangi bir aşama kritik */
-export function projectIsKritikRow(project: Pick<Project, 'archived' | 'durum' | 'bitisTarihi' | 'stages'>): boolean {
+/** Tablo satırı: yalnızca proje teslim tarihi kritikse kırmızı kabul edilir. */
+export function projectIsKritikRow(project: Pick<Project, 'archived' | 'durum' | 'bitisTarihi'>): boolean {
   if (project.archived) return false;
-  return isKritikProje(project) || projectHasKritikStage(project);
+  return isKritikProje(project);
 }
 
 export const DURUM_META = {
@@ -48,34 +48,64 @@ export const DURUM_META = {
     dot: 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.85)]',
     pill: 'bg-emerald-500/20 text-emerald-200 ring-emerald-400/40 shadow-[0_0_22px_-8px_rgba(16,185,129,0.5)]',
   },
+  kritik: {
+    label: 'Kritik',
+    dot: 'bg-red-300 shadow-[0_0_10px_rgba(252,165,165,0.9)]',
+    pill: 'bg-red-500/25 text-red-100 ring-red-400/45 shadow-[0_0_24px_-8px_rgba(248,113,113,0.58)]',
+  },
 } as const;
 
+type ProjectVisualKey = 'yesil' | 'mavi' | 'kritik' | 'normal';
+
+function projectHasWaitingApproval(project: Pick<Project, 'durum' | 'stages'>): boolean {
+  if (project.durum === 'mavi') return true;
+  return (project.stages ?? []).some((s) => s.durum === 'mavi');
+}
+
 /**
- * demo2 tablo — yalnızca 3 ana renk (MAVİ / SARI / YEŞİL). Kritik ayrıca firma yanında rozette.
+ * Proje satırı tek ana durum önceliği:
+ * delivered > waiting approval > critical > normal
  */
-export function getTableDurumVisual(project: Pick<Project, 'durum'>) {
+export function getTableDurumVisual(project: Pick<Project, 'durum' | 'bitisTarihi' | 'stages'>): {
+  key: ProjectVisualKey;
+  label: string;
+  pill: string;
+  dot: string;
+} {
   if (project.durum === 'yesil') {
     return {
+      key: 'yesil',
       label: 'Teslim Edilen',
       pill: DURUM_META.yesil.pill,
       dot: DURUM_META.yesil.dot,
     };
   }
-  if (project.durum === 'hazir') {
+  if (projectHasWaitingApproval(project)) {
     return {
-      label: 'Teslime Hazır',
-      pill: DURUM_META.hazir.pill,
-      dot: DURUM_META.hazir.dot,
-    };
-  }
-  if (project.durum === 'mavi') {
-    return {
+      key: 'mavi',
       label: 'Onay Bekleyen',
       pill: DURUM_META.mavi.pill,
       dot: DURUM_META.mavi.dot,
     };
   }
+  if (isKritikProje(project)) {
+    return {
+      key: 'kritik',
+      label: 'Kritik',
+      pill: DURUM_META.kritik.pill,
+      dot: DURUM_META.kritik.dot,
+    };
+  }
+  if (project.durum === 'hazir') {
+    return {
+      key: 'normal',
+      label: 'Teslime Hazır',
+      pill: DURUM_META.sari.pill,
+      dot: DURUM_META.sari.dot,
+    };
+  }
   return {
+    key: 'normal',
     label: 'Devam Eden',
     pill: DURUM_META.sari.pill,
     dot: DURUM_META.sari.dot,
@@ -95,4 +125,19 @@ export const ASAMA_DURUM_META = {
     label: 'Onaylandı',
     pill: 'bg-emerald-500/15 text-emerald-100 ring-emerald-400/20',
   },
+  kritik: {
+    label: 'Kritik',
+    pill: 'bg-red-500/20 text-red-100 ring-red-400/35',
+  },
 } as const;
+
+/**
+ * Aşama kartı tek ana durum önceliği:
+ * approved > waiting approval > critical > normal
+ */
+export function getStageDurumVisual(stage: Pick<Stage, 'durum' | 'bitisTarihi'>) {
+  if (stage.durum === 'yesil') return ASAMA_DURUM_META.yesil;
+  if (stage.durum === 'mavi') return ASAMA_DURUM_META.mavi;
+  if (isKritikStage(stage)) return ASAMA_DURUM_META.kritik;
+  return ASAMA_DURUM_META.bekliyor;
+}

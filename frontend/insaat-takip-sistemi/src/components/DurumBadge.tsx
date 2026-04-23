@@ -9,7 +9,7 @@ export default function DurumBadge({
   project,
 }: {
   durum: ProjectDurum;
-  project?: Pick<Project, 'durum'>;
+  project?: Pick<Project, 'durum' | 'bitisTarihi' | 'stages'>;
 }) {
   const m = project ? getTableDurumVisual(project) : (DURUM_META[durum] ?? DURUM_META.sari);
   return (

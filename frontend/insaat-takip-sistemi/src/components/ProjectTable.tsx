@@ -1,6 +1,6 @@
 import NitelikTag from './NitelikTag';
 import DurumBadge from './DurumBadge';
-import { projectIsKritikRow } from '../lib/mukavimRules';
+import { getTableDurumVisual } from '../lib/mukavimRules';
 import { projectHasDilekAssignment, projectHasStaffAssignment } from '../lib/stage';
 import type { AppRole, Project } from '../types';
 
@@ -63,7 +63,8 @@ export default function ProjectTable({
               </tr>
             ) : (
               projects.map((p) => {
-                const kritik = projectIsKritikRow(p);
+                const visual = getTableDurumVisual(p);
+                const kritik = visual.key === 'kritik';
                 const hasMyStage =
                   role === 'personel' && staffUserLabel?.trim()
                     ? projectHasStaffAssignment(p, staffUserLabel)

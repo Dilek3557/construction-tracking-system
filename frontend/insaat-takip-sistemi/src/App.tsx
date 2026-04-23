@@ -11,7 +11,7 @@ import LoginScreen from './components/LoginScreen';
 import MyTasksPage from './components/MyTasksPage';
 import StaffManagementPage from './components/StaffManagementPage';
 import { daysUntil } from './lib/date';
-import { projectIsKritikRow } from './lib/mukavimRules';
+import { getTableDurumVisual } from './lib/mukavimRules';
 import { appendStageCompletion, reconcileStageAssignees, withComputedProjectStatus } from './lib/stage';
 import { buildMyTaskRows } from './lib/myTasks';
 import { createId } from './lib/id';
@@ -144,9 +144,10 @@ export default function App() {
 
   const stats = useMemo(() => {
     const pool = dashboardProjects;
-    const kritik = pool.filter(projectIsKritikRow);
-    const mavi = pool.filter((p) => p.durum === 'mavi');
-    const yesil = pool.filter((p) => p.durum === 'yesil');
+    const visuals = pool.map((p) => ({ project: p, visual: getTableDurumVisual(p) }));
+    const kritik = visuals.filter((x) => x.visual.key === 'kritik').map((x) => x.project);
+    const mavi = visuals.filter((x) => x.visual.key === 'mavi').map((x) => x.project);
+    const yesil = visuals.filter((x) => x.visual.key === 'yesil').map((x) => x.project);
     const sortedKritik = [...kritik].sort(
       (a, b) => (daysUntil(a.bitisTarihi) ?? 99) - (daysUntil(b.bitisTarihi) ?? 99)
     );
@@ -436,7 +437,7 @@ export default function App() {
                   variant="critical"
                   title="KRİTİK (≤3 GÜN)"
                   value={stats.kritikCount}
-                  subtitle="Proje veya aşama teslimine ≤3 gün"
+                  subtitle="Proje teslim tarihine ≤3 gün"
                   footerLeft="En yakını"
                   footerRight={stats.nearestName}
                 />

@@ -1,5 +1,5 @@
 import { NAME_ADMIN, normalizePersonName } from '../constants';
-import { ASAMA_DURUM_META, isKritikStage } from '../lib/mukavimRules';
+import { getStageDurumVisual, isKritikStage } from '../lib/mukavimRules';
 import {
   adminCanApproveStage,
   adminCanMarkStageDone,
@@ -46,7 +46,7 @@ export default function StageCard({
 }) {
   const locked = stage.durum === 'yesil';
   const pending = stage.durum === 'mavi';
-  const meta = ASAMA_DURUM_META[stage.durum] ?? ASAMA_DURUM_META.bekliyor;
+  const meta = getStageDurumVisual(stage);
   const sorumlar = getStageAssignees(stage);
   const stageKritik = isKritikStage(stage);
 
@@ -59,6 +59,8 @@ export default function StageCard({
       ? 'border-sky-400/50 bg-gradient-to-br from-sky-950/45 via-navy-950/30 to-navy-950/20'
       : pending
         ? 'border-sky-500/25 bg-sky-500/10'
+        : stageKritik
+          ? 'border-red-400/40 bg-red-500/10'
         : 'border-white/10 bg-white/5';
 
   const assignedToMe =
@@ -142,11 +144,7 @@ export default function StageCard({
               </div>
             </div>
           ) : null}
-          <div
-            className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ${meta.pill} ${
-              yoneticiOnayBekliyor ? 'animate-approval-badge-soft' : ''
-            }`}
-          >
+          <div className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ${meta.pill}`}>
             {meta.label}
           </div>
           {stage.not ? (
