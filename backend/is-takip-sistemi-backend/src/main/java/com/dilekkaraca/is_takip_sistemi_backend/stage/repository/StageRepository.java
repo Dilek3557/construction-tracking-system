@@ -14,4 +14,6 @@ public interface StageRepository extends JpaRepository<Stage, Long> {
     List<Stage> findByProjectId(Long projectId);
 
     List<Stage> findByStatus(StageStatus status);
+
+    long countByStatus(StageStatus status);
 }

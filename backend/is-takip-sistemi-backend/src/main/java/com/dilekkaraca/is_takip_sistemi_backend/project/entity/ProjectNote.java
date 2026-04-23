@@ -1,6 +1,5 @@
 package com.dilekkaraca.is_takip_sistemi_backend.project.entity;
-/*interaktif notlar*/
-
+/* interaktif notlar */
 
 import com.dilekkaraca.is_takip_sistemi_backend.user.entity.User;
 import jakarta.persistence.*;
@@ -17,18 +16,20 @@ import java.time.LocalDateTime;
 @Builder
 public class ProjectNote {
 
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
-    @JoinColumn(name ="project_id",nullable = false)
+    @JoinColumn(name ="project_id", nullable = false)
     private Project project;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "author_user_id", nullable = false)
     private User author;
+
+    @Column(nullable = false, columnDefinition = "text")
+    private String message;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -37,5 +38,4 @@ public class ProjectNote {
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
     }
-
 }

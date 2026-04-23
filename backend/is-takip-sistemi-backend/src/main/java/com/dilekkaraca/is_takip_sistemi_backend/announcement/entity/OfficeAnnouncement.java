@@ -6,7 +6,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
-
+//yönetici duyuyusru
 @Entity
 @Table(name = "office_announcements")
 @Getter
