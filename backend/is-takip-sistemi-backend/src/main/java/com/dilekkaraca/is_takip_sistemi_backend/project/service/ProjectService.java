@@ -1,6 +1,8 @@
 package com.dilekkaraca.is_takip_sistemi_backend.project.service;
 
 import com.dilekkaraca.is_takip_sistemi_backend.exception.ProjectNotFoundException;
+import com.dilekkaraca.is_takip_sistemi_backend.project.dto.ProjectCreateRequest;
+import com.dilekkaraca.is_takip_sistemi_backend.project.dto.ProjectResponse;
 import com.dilekkaraca.is_takip_sistemi_backend.project.entity.Project;
 import com.dilekkaraca.is_takip_sistemi_backend.project.enums.ProjectStatus;
 import com.dilekkaraca.is_takip_sistemi_backend.project.repository.ProjectRepository;
@@ -16,13 +18,22 @@ public class ProjectService {
 
     private final ProjectRepository projectRepository;
 
-    @Transactional
-    public Project createProject(Project project) {
-        project.setStatus(ProjectStatus.ACTIVE);
-        project.setArchived(false);
-        return projectRepository.save(project);
-    }
+    public ProjectResponse createProject(ProjectCreateRequest request) {
 
+        Project project = Project.builder()
+                .companyName(request.getCompanyName())
+                .name(request.getName())
+                .projectType(request.getProjectType())
+                .startDate(request.getStartDate())
+                .endDate(request.getEndDate())
+                .status(ProjectStatus.ACTIVE)
+                .archived(false)
+                .build();
+
+        Project saved = projectRepository.save(project);
+
+        return mapToResponse(saved);
+    }
     public List<Project> getAllProjects() {
         return projectRepository.findAll();
     }
@@ -62,5 +73,17 @@ public class ProjectService {
 
         project.setArchived(archived);
         return projectRepository.save(project);
+    }
+    private ProjectResponse mapToResponse(Project project) {
+        return ProjectResponse.builder()
+                .id(project.getId())
+                .companyName(project.getCompanyName())
+                .name(project.getName())
+                .projectType(project.getProjectType())
+                .startDate(project.getStartDate())
+                .endDate(project.getEndDate())
+                .status(project.getStatus().name())
+                .archived(project.isArchived())
+                .build();
     }
 }

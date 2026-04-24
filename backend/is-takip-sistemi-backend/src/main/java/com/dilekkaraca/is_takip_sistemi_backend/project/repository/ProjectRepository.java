@@ -21,10 +21,11 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
             ProjectStatus status
     );
 
-    long countByStatus(ProjectStatus status);@Query("""
+    long countByStatus(ProjectStatus status);
+
+    @Query("""
     SELECT p.projectType, COUNT(p)
     FROM Project p
-    WHERE p.archived = false
     GROUP BY p.projectType
 """)
     List<Object[]> countProjectsByType();

@@ -1,5 +1,7 @@
 package com.dilekkaraca.is_takip_sistemi_backend.project.controller;
 
+import com.dilekkaraca.is_takip_sistemi_backend.project.dto.ProjectCreateRequest;
+import com.dilekkaraca.is_takip_sistemi_backend.project.dto.ProjectResponse;
 import com.dilekkaraca.is_takip_sistemi_backend.project.entity.Project;
 import com.dilekkaraca.is_takip_sistemi_backend.project.service.ProjectService;
 import lombok.RequiredArgsConstructor;
@@ -15,8 +17,8 @@ public class ProjectController {
     private final ProjectService projectService;
 
     @PostMapping
-    public Project createProject(@RequestBody Project project) {
-        return projectService.createProject(project);
+    public ProjectResponse createProject(@RequestBody ProjectCreateRequest request) {
+        return projectService.createProject(request);
     }
 
     @GetMapping
