@@ -16,6 +16,7 @@ import { appendStageCompletion, reconcileStageAssignees, withComputedProjectStat
 import { buildMyTaskRows } from './lib/myTasks';
 import { createId } from './lib/id';
 import { NAME_ADMIN, NAME_DILEK, STAFF_LIST } from './constants';
+import { createProject, fetchProjectsFromApi } from './api/projectsApi';
 import * as apiService from './api/apiService';
 import type {
   AppCurrentPage,
@@ -31,7 +32,8 @@ import type {
 
 export default function App() {
   const [session, setSession] = useState<SessionPayload | null>(() => apiService.getSession());
-  const [projects, setProjects] = useState<Project[]>(() => apiService.getProjects());
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [chartRefreshKey, setChartRefreshKey] = useState(0);
   const [role, setRole] = useState<AppRole>(() => apiService.getSession()?.role ?? apiService.getRole());
   const [currentPage, setCurrentPage] = useState<AppCurrentPage>(() => {
     const initialRole = apiService.getSession()?.role ?? apiService.getRole();
@@ -49,9 +51,22 @@ export default function App() {
   const [newProjectOpen, setNewProjectOpen] = useState<boolean>(false);
   const [yoneticiListe, setYoneticiListe] = useState<YoneticiListe>('aktif');
 
+  const loadProjectsFromBackend = useCallback(async () => {
+    try {
+      const list = await fetchProjectsFromApi();
+      setProjects(list);
+    } catch {
+      setProjects([]);
+    }
+  }, []);
+
   useEffect(() => {
-    apiService.setProjects(projects);
-  }, [projects]);
+    if (!session) {
+      setProjects([]);
+      return;
+    }
+    void loadProjectsFromBackend();
+  }, [session, loadProjectsFromBackend]);
 
   useEffect(() => {
     apiService.setRole(role);
@@ -131,6 +146,7 @@ export default function App() {
     setSession(null);
     setDetailProjectId(null);
     setNoteDraft('');
+    setProjects([]);
   }, []);
 
   const detailProject = useMemo<Project | null>(
@@ -312,23 +328,19 @@ export default function App() {
   }, [detailProjectId, noteDraft, role, session?.userLabel, updateProjectById]);
 
   const handleAddProject = useCallback(
-    (payload: { isim: string; firmaAdi: string; nitelik: string; baslangicTarihi: string; bitisTarihi: string }) => {
+    async (payload: { isim: string; firmaAdi: string; nitelik: string; baslangicTarihi: string; bitisTarihi: string }) => {
       if (!payload.isim || !payload.firmaAdi || !payload.baslangicTarihi || !payload.bitisTarihi) return;
-      const np = withComputedProjectStatus({
-        id: createId('p'),
-        firmaAdi: payload.firmaAdi,
-        isim: payload.isim,
-        nitelik: payload.nitelik,
-        baslangicTarihi: payload.baslangicTarihi,
-        bitisTarihi: payload.bitisTarihi,
-        durum: 'sari',
-        archived: false,
-        stages: [],
-        notes: [],
+      await createProject({
+        companyName: payload.firmaAdi,
+        name: payload.isim,
+        projectType: payload.nitelik,
+        startDate: payload.baslangicTarihi,
+        endDate: payload.bitisTarihi,
       });
-      setProjects((prev) => [...prev, np]);
+      await loadProjectsFromBackend();
+      setChartRefreshKey((k) => k + 1);
     },
-    []
+    [loadProjectsFromBackend]
   );
 
   const saveDuyuru = useCallback(() => {
@@ -352,7 +364,6 @@ export default function App() {
   }, [role, genelNotDraft, session?.userLabel]);
 
   const listProjects = role === 'yonetici' ? (yoneticiListe === 'arsiv' ? archiveProjects : dashboardProjects) : dashboardProjects;
-  const chartProjects = role === 'yonetici' ? projects : dashboardProjects;
 
   if (!session) {
     return <LoginScreen onLogin={handleLogin} />;
@@ -504,7 +515,7 @@ export default function App() {
                 </div>
 
                 <aside className="min-w-0 lg:col-span-4 lg:self-start">
-                  <GlobalChart projects={chartProjects} />
+                  <GlobalChart refreshKey={chartRefreshKey} />
                 </aside>
               </section>
 
