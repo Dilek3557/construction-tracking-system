@@ -4,8 +4,11 @@ package com.dilekkaraca.is_takip_sistemi_backend.stage.service;
 
 import com.dilekkaraca.is_takip_sistemi_backend.exception.ProjectNotFoundException;
 import com.dilekkaraca.is_takip_sistemi_backend.exception.StageNotFoundException;
+import com.dilekkaraca.is_takip_sistemi_backend.exception.UserNotFoundException;
 import com.dilekkaraca.is_takip_sistemi_backend.project.entity.Project;
 import com.dilekkaraca.is_takip_sistemi_backend.project.repository.ProjectRepository;
+import com.dilekkaraca.is_takip_sistemi_backend.stage.dto.StageCreateRequest;
+import com.dilekkaraca.is_takip_sistemi_backend.stage.dto.StageResponse;
 import com.dilekkaraca.is_takip_sistemi_backend.stage.entity.Stage;
 import com.dilekkaraca.is_takip_sistemi_backend.stage.entity.StageAssignment;
 import com.dilekkaraca.is_takip_sistemi_backend.stage.enums.StageStatus;
@@ -29,19 +32,30 @@ public class StageService {
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
 
-    public Stage addStageToProject(Long projectId, Stage stage) {
+    public StageResponse createStage(Long projectId, StageCreateRequest request) {
+
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new ProjectNotFoundException(projectId));
 
-        stage.setProject(project);
-        stage.setStatus(StageStatus.PENDING);
+        Stage stage = Stage.builder()
+                .project(project)
+                .name(request.getName())
+                .dueDate(request.getDueDate())
+                .note(request.getNote())
+                .status(StageStatus.PENDING)
+                .build();
 
-        return stageRepository.save(stage);
+        Stage saved = stageRepository.save(stage);
+
+        return mapToResponse(saved);
+    }
+    public List<StageResponse> getStagesByProjectId(Long projectId) {
+        return stageRepository.findByProjectId(projectId)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
     }
 
-    public List<Stage> getStagesByProjectId(Long projectId) {
-        return stageRepository.findByProjectId(projectId);
-    }
 
     public Stage getStageById(Long stageId) {
         return stageRepository.findById(stageId)
@@ -58,8 +72,7 @@ public class StageService {
 
         for (Long userId : userIds) {
             User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new RuntimeException("Kullanıcı bulunamadı. Id: " + userId));
-
+                    .orElseThrow(() -> new UserNotFoundException(userId));
             StageAssignment assignment = StageAssignment.builder()
                     .stage(stage)
                     .user(user)
@@ -109,5 +122,15 @@ public class StageService {
 
         stage.setStatus(StageStatus.APPROVED);
         return stageRepository.save(stage);
+    }
+    private StageResponse mapToResponse(Stage stage) {
+        return StageResponse.builder()
+                .id(stage.getId())
+                .projectId(stage.getProject().getId())
+                .name(stage.getName())
+                .dueDate(stage.getDueDate())
+                .status(stage.getStatus().name())
+                .note(stage.getNote())
+                .build();
     }
 }

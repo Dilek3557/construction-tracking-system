@@ -11,17 +11,17 @@ import java.time.LocalDate;
 @Setter
 public class ProjectCreateRequest {
 
-    @NotBlank
+    @NotBlank(message = "Firma adı boş olamaz.")
     private String companyName;
 
-    @NotBlank
+    @NotBlank(message = "Proje adı boş olamaz.")
     private String name;
 
-    @NotBlank
+    @NotBlank(message = "Proje niteliği boş olamaz.")
     private String projectType;
 
     private LocalDate startDate;
 
-    @NotNull
+    @NotNull(message = "Bitiş tarihi boş olamaz.")
     private LocalDate endDate;
 }

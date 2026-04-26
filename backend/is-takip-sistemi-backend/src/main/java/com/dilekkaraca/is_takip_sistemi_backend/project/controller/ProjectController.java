@@ -4,6 +4,7 @@ import com.dilekkaraca.is_takip_sistemi_backend.project.dto.ProjectCreateRequest
 import com.dilekkaraca.is_takip_sistemi_backend.project.dto.ProjectResponse;
 import com.dilekkaraca.is_takip_sistemi_backend.project.entity.Project;
 import com.dilekkaraca.is_takip_sistemi_backend.project.service.ProjectService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,7 +18,7 @@ public class ProjectController {
     private final ProjectService projectService;
 
     @PostMapping
-    public ProjectResponse createProject(@RequestBody ProjectCreateRequest request) {
+    public ProjectResponse createProject(@Valid @RequestBody ProjectCreateRequest request) {
         return projectService.createProject(request);
     }
 
