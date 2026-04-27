@@ -8,6 +8,9 @@ export default defineConfig({
     proxy: {
       '/dashboard': { target: 'http://localhost:8080', changeOrigin: true },
       '/projects': { target: 'http://localhost:8080', changeOrigin: true },
+      '/stages': { target: 'http://localhost:8080', changeOrigin: true },
+      '/announcements': { target: 'http://localhost:8080', changeOrigin: true },
+      '/general-notes': { target: 'http://localhost:8080', changeOrigin: true },
     },
   },
 })

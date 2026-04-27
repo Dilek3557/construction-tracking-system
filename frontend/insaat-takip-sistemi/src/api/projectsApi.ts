@@ -1,6 +1,7 @@
 import { withComputedProjectStatus } from '../lib/stage';
 import type { Project, ProjectDurum } from '../types';
 import { buildApiUrl } from './apiBase';
+import { readApiErrorMessage } from './apiErrors';
 
 export type CreateProjectRequestBody = {
   companyName: string;
@@ -9,6 +10,8 @@ export type CreateProjectRequestBody = {
   startDate: string;
   endDate: string;
 };
+
+export type ProjectsListMode = 'all' | 'active' | 'archived';
 
 function mapBackendStatus(status: string): ProjectDurum {
   switch (status) {
@@ -24,19 +27,25 @@ function mapBackendStatus(status: string): ProjectDurum {
   }
 }
 
-function mapOne(raw: unknown): Project | null {
+export function mapProjectFromApi(raw: unknown): Project | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const o = raw as Record<string, unknown>;
   const id = o.id;
   if (id === undefined || id === null) return null;
   const idStr = String(id);
+  let start: string | undefined;
+  if (typeof o.startDate === 'string') start = o.startDate;
+  else if (o.startDate != null) start = String(o.startDate);
+  let end = '';
+  if (typeof o.endDate === 'string') end = o.endDate;
+  else if (o.endDate != null) end = String(o.endDate);
   return withComputedProjectStatus({
     id: idStr,
     firmaAdi: typeof o.companyName === 'string' ? o.companyName : '',
     isim: typeof o.name === 'string' ? o.name : '',
     nitelik: typeof o.projectType === 'string' ? o.projectType : '',
-    baslangicTarihi: typeof o.startDate === 'string' ? o.startDate : undefined,
-    bitisTarihi: typeof o.endDate === 'string' ? o.endDate : '',
+    baslangicTarihi: start,
+    bitisTarihi: end,
     durum: mapBackendStatus(String(o.status)),
     archived: Boolean(o.archived),
     stages: [],
@@ -44,30 +53,17 @@ function mapOne(raw: unknown): Project | null {
   });
 }
 
-export async function createProject(body: CreateProjectRequestBody): Promise<void> {
-  const url = buildApiUrl('/projects');
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      companyName: body.companyName,
-      name: body.name,
-      projectType: body.projectType,
-      startDate: body.startDate,
-      endDate: body.endDate,
-    }),
-  });
-  if (!res.ok) {
-    const t = await res.text();
-    throw new Error(t || `Proje kaydı başarısız (${res.status})`);
-  }
+function listPath(mode: ProjectsListMode): string {
+  if (mode === 'active') return '/projects/active';
+  if (mode === 'archived') return '/projects/archived';
+  return '/projects';
 }
 
-export async function fetchProjectsFromApi(): Promise<Project[]> {
-  const url = buildApiUrl('/projects');
+export async function fetchProjectsFromApi(mode: ProjectsListMode = 'all'): Promise<Project[]> {
+  const url = buildApiUrl(listPath(mode));
   const res = await fetch(url);
   if (!res.ok) {
-    throw new Error(`Proje listesi alınamadı (${res.status})`);
+    throw new Error(await readApiErrorMessage(res));
   }
   const data: unknown = await res.json();
   if (!Array.isArray(data)) {
@@ -75,8 +71,53 @@ export async function fetchProjectsFromApi(): Promise<Project[]> {
   }
   const out: Project[] = [];
   for (const item of data) {
-    const p = mapOne(item);
+    const p = mapProjectFromApi(item);
     if (p) out.push(p);
   }
   return out;
+}
+
+export async function createProject(body: CreateProjectRequestBody): Promise<void> {
+  const url = buildApiUrl('/projects');
+  const payload: Record<string, string> = {
+    companyName: body.companyName,
+    name: body.name,
+    projectType: body.projectType,
+    endDate: body.endDate,
+  };
+  if (body.startDate?.trim()) payload.startDate = body.startDate.trim();
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error(await readApiErrorMessage(res));
+  }
+}
+
+export async function deliverProject(projectId: string): Promise<Project> {
+  const url = buildApiUrl(`/projects/${encodeURIComponent(projectId)}/deliver`);
+  const res = await fetch(url, { method: 'PUT' });
+  if (!res.ok) {
+    throw new Error(await readApiErrorMessage(res));
+  }
+  const raw: unknown = await res.json();
+  const p = mapProjectFromApi(raw);
+  if (!p) throw new Error('Beklenmeyen proje yanıtı');
+  return p;
+}
+
+export async function setProjectArchived(projectId: string, archived: boolean): Promise<Project> {
+  const url = buildApiUrl(
+    `/projects/${encodeURIComponent(projectId)}/archive?archived=${archived ? 'true' : 'false'}`
+  );
+  const res = await fetch(url, { method: 'PUT' });
+  if (!res.ok) {
+    throw new Error(await readApiErrorMessage(res));
+  }
+  const raw: unknown = await res.json();
+  const p = mapProjectFromApi(raw);
+  if (!p) throw new Error('Beklenmeyen proje yanıtı');
+  return p;
 }

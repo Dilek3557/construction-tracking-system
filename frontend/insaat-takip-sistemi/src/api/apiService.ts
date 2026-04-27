@@ -124,7 +124,11 @@ export function getSession(): SessionPayload | null {
     const userLabel = typeof parsed.userLabel === 'string' ? parsed.userLabel.trim() : '';
     const role: AppRole = parsed.role === 'personel' ? 'personel' : 'yonetici';
     if (!userLabel) return null;
-    return { userLabel, role };
+    const backendUserId =
+      typeof parsed.backendUserId === 'number' && Number.isFinite(parsed.backendUserId)
+        ? parsed.backendUserId
+        : undefined;
+    return { userLabel, role, backendUserId };
   } catch {
     return null;
   }

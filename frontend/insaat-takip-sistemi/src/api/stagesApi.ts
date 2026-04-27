@@ -1,0 +1,169 @@
+import { buildApiUrl } from './apiBase';
+import { readApiErrorMessage } from './apiErrors';
+import type { Stage, StageDurum } from '../types';
+
+export type StageAssignmentApiRow = {
+  userDisplayName?: string;
+  completed?: boolean;
+};
+
+function mapBackendStageStatus(status: string): StageDurum {
+  switch (status) {
+    case 'WAITING_APPROVAL':
+      return 'mavi';
+    case 'APPROVED':
+      return 'yesil';
+    case 'PENDING':
+    default:
+      return 'bekliyor';
+  }
+}
+
+function parseStageRow(raw: unknown): {
+  id: string;
+  name: string;
+  dueDate: string;
+  status: string;
+  note: string;
+} | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const o = raw as Record<string, unknown>;
+  const id = o.id;
+  if (id === undefined || id === null) return null;
+  const due = o.dueDate;
+  let dueStr = '';
+  if (typeof due === 'string') dueStr = due;
+  else if (due && typeof due === 'object' && 'toString' in due) dueStr = String(due);
+  return {
+    id: String(id),
+    name: typeof o.name === 'string' ? o.name : '',
+    dueDate: dueStr,
+    status: typeof o.status === 'string' ? o.status : 'PENDING',
+    note: typeof o.note === 'string' ? o.note : '',
+  };
+}
+
+/** Tek stage satırı (atama listesi API’de yoksa boş). */
+export function stageFromApiRow(raw: unknown): Stage | null {
+  const p = parseStageRow(raw);
+  if (!p) return null;
+  return {
+    id: p.id,
+    isim: p.name,
+    bitisTarihi: p.dueDate,
+    sorumlular: [],
+    completedBy: [],
+    durum: mapBackendStageStatus(p.status),
+    not: p.note,
+  };
+}
+
+export function mergeStagesWithPrevious(fetched: Stage[], previous: readonly Stage[] | undefined): Stage[] {
+  return fetched.map((s) => {
+    const p = previous?.find((x) => x.id === s.id);
+    if (!p) return s;
+    const keepAssignees = s.sorumlular.length === 0 && (p.sorumlular?.length ?? 0) > 0;
+    if (keepAssignees) {
+      return {
+        ...s,
+        sorumlular: [...p.sorumlular],
+        completedBy: [...(p.completedBy ?? [])],
+        not: s.not || p.not,
+      };
+    }
+    return { ...s, not: s.not || p.not };
+  });
+}
+
+export function overlayStageFromAssignments(stage: Stage, assignments: readonly StageAssignmentApiRow[]): Stage {
+  const names = assignments
+    .map((a) => (typeof a.userDisplayName === 'string' ? a.userDisplayName.trim() : ''))
+    .filter(Boolean);
+  const sorumlular = [...new Set(names)];
+  const completedBy = assignments.filter((a) => a.completed).map((a) => a.userDisplayName?.trim() ?? '').filter(Boolean);
+  return { ...stage, sorumlular, completedBy };
+}
+
+export async function fetchStagesByProjectId(projectId: string): Promise<Stage[]> {
+  const url = buildApiUrl(`/stages/project/${encodeURIComponent(projectId)}`);
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(await readApiErrorMessage(res));
+  }
+  const data: unknown = await res.json();
+  if (!Array.isArray(data)) return [];
+  const out: Stage[] = [];
+  for (const row of data) {
+    const s = stageFromApiRow(row);
+    if (s) out.push(s);
+  }
+  return out;
+}
+
+export async function createStage(
+  projectId: string,
+  body: { name: string; dueDate: string; note: string }
+): Promise<Stage> {
+  const url = buildApiUrl(`/stages/project/${encodeURIComponent(projectId)}`);
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: body.name,
+      dueDate: body.dueDate,
+      note: body.note,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(await readApiErrorMessage(res));
+  }
+  const raw: unknown = await res.json();
+  const s = stageFromApiRow(raw);
+  if (!s) throw new Error('Beklenmeyen aşama yanıtı');
+  return s;
+}
+
+export async function assignUsersToStage(stageId: string, userIds: number[]): Promise<StageAssignmentApiRow[]> {
+  const url = buildApiUrl(`/stages/${encodeURIComponent(stageId)}/assign-users`);
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userIds }),
+  });
+  if (!res.ok) {
+    throw new Error(await readApiErrorMessage(res));
+  }
+  const data: unknown = await res.json();
+  if (!Array.isArray(data)) return [];
+  return data as StageAssignmentApiRow[];
+}
+
+export async function completeStageAssignment(
+  stageId: string,
+  body: { userId: number; completionNote: string }
+): Promise<void> {
+  const url = buildApiUrl(`/stages/${encodeURIComponent(stageId)}/complete`);
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      userId: body.userId,
+      completionNote: body.completionNote,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(await readApiErrorMessage(res));
+  }
+}
+
+export async function approveStage(stageId: string): Promise<Stage> {
+  const url = buildApiUrl(`/stages/${encodeURIComponent(stageId)}/approve`);
+  const res = await fetch(url, { method: 'PUT' });
+  if (!res.ok) {
+    throw new Error(await readApiErrorMessage(res));
+  }
+  const raw: unknown = await res.json();
+  const s = stageFromApiRow(raw);
+  if (!s) throw new Error('Beklenmeyen aşama yanıtı');
+  return s;
+}

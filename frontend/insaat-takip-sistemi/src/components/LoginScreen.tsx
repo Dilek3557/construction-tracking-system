@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import type { AppRole } from '../types';
+import { resolveBackendUserIdFromLoginUsername } from '../constants';
 
 export default function LoginScreen({
   onLogin,
 }: {
-  onLogin: (payload: { userLabel: string; role: AppRole }) => void;
+  onLogin: (payload: { userLabel: string; role: AppRole; backendUserId?: number | null }) => void;
 }) {
   const [userLabel, setUserLabel] = useState('mustafa');
   const [role, setRole] = useState<AppRole>('yonetici');
@@ -14,7 +15,8 @@ export default function LoginScreen({
     e.preventDefault();
     const trimmed = userLabel.trim();
     if (!trimmed) return;
-    onLogin({ userLabel: trimmed, role });
+    const backendUserId = resolveBackendUserIdFromLoginUsername(trimmed);
+    onLogin({ userLabel: trimmed, role, backendUserId });
   }
 
   return (

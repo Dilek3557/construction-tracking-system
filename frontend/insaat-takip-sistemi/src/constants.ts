@@ -26,3 +26,28 @@ export const STAFF_LIST = [NAME_ADMIN, NAME_DILEK, 'Ahmet'] as const;
 
 export const CATEGORIES = ['Betonarme', 'Çelik', 'Ahşap', 'Restorasyon'] as const;
 
+/**
+ * Demo: giriş kullanıcı adı → backend `users.id` (API `userId` alanları).
+ * Veritabanındaki kullanıcı sırası farklıysa burayı güncelleyin.
+ */
+export function resolveBackendUserIdFromLoginUsername(username: string): number | null {
+  const k = username.trim().toLowerCase();
+  const map: Record<string, number> = {
+    mustafa: 1,
+    dilek: 2,
+    ahmet: 3,
+  };
+  return map[k] ?? null;
+}
+
+/** Atama checkbox’larındaki görünen ad → backend kullanıcı id (demo). */
+export function resolveBackendUserIdFromDisplayName(displayName: string): number | null {
+  const n = (normalizePersonName(displayName) ?? displayName).trim().toLocaleLowerCase('tr-TR');
+  const map: Record<string, number> = {
+    [NAME_ADMIN.toLocaleLowerCase('tr-TR')]: 1,
+    [NAME_DILEK.toLocaleLowerCase('tr-TR')]: 2,
+    ahmet: 3,
+  };
+  return map[n] ?? null;
+}
+

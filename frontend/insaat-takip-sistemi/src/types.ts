@@ -11,6 +11,8 @@ export type AppCurrentPage = 'dashboard' | 'myTasks' | 'staffManagement';
 export interface SessionPayload {
   userLabel: string;
   role: AppRole;
+  /** Backend `CompleteAssignmentRequest.userId` vb. için (demo eşleme). */
+  backendUserId?: number | null;
 }
 
 export type YoneticiListe = 'aktif' | 'arsiv';

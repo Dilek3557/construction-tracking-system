@@ -11,12 +11,30 @@ import LoginScreen from './components/LoginScreen';
 import MyTasksPage from './components/MyTasksPage';
 import StaffManagementPage from './components/StaffManagementPage';
 import { daysUntil } from './lib/date';
-import { getTableDurumVisual } from './lib/mukavimRules';
-import { appendStageCompletion, reconcileStageAssignees, withComputedProjectStatus } from './lib/stage';
+import { withComputedProjectStatus } from './lib/stage';
 import { buildMyTaskRows } from './lib/myTasks';
 import { createId } from './lib/id';
-import { NAME_ADMIN, NAME_DILEK, STAFF_LIST } from './constants';
-import { createProject, fetchProjectsFromApi } from './api/projectsApi';
+import { NAME_ADMIN, NAME_DILEK, STAFF_LIST, resolveBackendUserIdFromDisplayName } from './constants';
+import {
+  createProject,
+  deliverProject,
+  fetchProjectsFromApi,
+  setProjectArchived,
+} from './api/projectsApi';
+import {
+  approveStage,
+  assignUsersToStage,
+  completeStageAssignment,
+  createStage,
+  fetchStagesByProjectId,
+  mergeStagesWithPrevious,
+  overlayStageFromAssignments,
+} from './api/stagesApi';
+import {
+  fetchCriticalProjects,
+  fetchDeliveredProjectCount,
+  fetchWaitingApprovalStageCount,
+} from './api/dashboardApi';
 import * as apiService from './api/apiService';
 import type {
   AppCurrentPage,
@@ -33,7 +51,14 @@ import type {
 export default function App() {
   const [session, setSession] = useState<SessionPayload | null>(() => apiService.getSession());
   const [projects, setProjects] = useState<Project[]>([]);
-  const [chartRefreshKey, setChartRefreshKey] = useState(0);
+  /** Proje / aşama / dashboard API yenileme tetikleyicisi */
+  const [dataRefreshKey, setDataRefreshKey] = useState(0);
+  const [dashboardStats, setDashboardStats] = useState({
+    kritikCount: 0,
+    kritikNearestName: '—',
+    maviStageCount: 0,
+    yesilDeliveredCount: 0,
+  });
   const [role, setRole] = useState<AppRole>(() => apiService.getSession()?.role ?? apiService.getRole());
   const [currentPage, setCurrentPage] = useState<AppCurrentPage>(() => {
     const initialRole = apiService.getSession()?.role ?? apiService.getRole();
@@ -53,10 +78,37 @@ export default function App() {
 
   const loadProjectsFromBackend = useCallback(async () => {
     try {
-      const list = await fetchProjectsFromApi();
+      const mode = role === 'yonetici' && yoneticiListe === 'arsiv' ? 'archived' : 'active';
+      const list = await fetchProjectsFromApi(mode);
       setProjects(list);
     } catch {
       setProjects([]);
+    }
+  }, [role, yoneticiListe]);
+
+  const loadDashboardStats = useCallback(async () => {
+    try {
+      const [critical, waiting, delivered] = await Promise.all([
+        fetchCriticalProjects(),
+        fetchWaitingApprovalStageCount(),
+        fetchDeliveredProjectCount(),
+      ]);
+      const sortedKritik = [...critical].sort(
+        (a, b) => (daysUntil(a.bitisTarihi) ?? 99) - (daysUntil(b.bitisTarihi) ?? 99)
+      );
+      setDashboardStats({
+        kritikCount: critical.length,
+        kritikNearestName: sortedKritik[0]?.isim ?? '—',
+        maviStageCount: waiting,
+        yesilDeliveredCount: delivered,
+      });
+    } catch {
+      setDashboardStats({
+        kritikCount: 0,
+        kritikNearestName: '—',
+        maviStageCount: 0,
+        yesilDeliveredCount: 0,
+      });
     }
   }, []);
 
@@ -67,6 +119,11 @@ export default function App() {
     }
     void loadProjectsFromBackend();
   }, [session, loadProjectsFromBackend]);
+
+  useEffect(() => {
+    if (!session || currentPage !== 'dashboard') return;
+    void loadDashboardStats();
+  }, [session, currentPage, dataRefreshKey, loadDashboardStats]);
 
   useEffect(() => {
     apiService.setRole(role);
@@ -130,8 +187,13 @@ export default function App() {
     [session?.role]
   );
 
-  const handleLogin = useCallback((payload: { userLabel: string; role: AppRole }) => {
-    const sess: SessionPayload = { userLabel: payload.userLabel.trim(), role: payload.role };
+  const handleLogin = useCallback(
+    (payload: { userLabel: string; role: AppRole; backendUserId?: number | null }) => {
+    const sess: SessionPayload = {
+      userLabel: payload.userLabel.trim(),
+      role: payload.role,
+      backendUserId: payload.backendUserId ?? undefined,
+    };
     setSession(sess);
     apiService.setSession(sess);
     setRole(payload.role);
@@ -158,26 +220,6 @@ export default function App() {
 
   const archiveProjects = useMemo<Project[]>(() => projects.filter((p) => p.archived), [projects]);
 
-  const stats = useMemo(() => {
-    const pool = dashboardProjects;
-    const visuals = pool.map((p) => ({ project: p, visual: getTableDurumVisual(p) }));
-    const kritik = visuals.filter((x) => x.visual.key === 'kritik').map((x) => x.project);
-    const mavi = visuals.filter((x) => x.visual.key === 'mavi').map((x) => x.project);
-    const yesil = visuals.filter((x) => x.visual.key === 'yesil').map((x) => x.project);
-    const sortedKritik = [...kritik].sort(
-      (a, b) => (daysUntil(a.bitisTarihi) ?? 99) - (daysUntil(b.bitisTarihi) ?? 99)
-    );
-    const nearest = sortedKritik[0];
-    const sonYesil = yesil[yesil.length - 1];
-    return {
-      kritikCount: kritik.length,
-      maviCount: mavi.length,
-      yesilCount: yesil.length,
-      nearestName: nearest?.isim ?? '—',
-      sonYesilName: sonYesil?.isim ?? '—',
-    };
-  }, [dashboardProjects]);
-
   const myTaskRows = useMemo(() => {
     if (!session?.userLabel) return [];
     return buildMyTaskRows(projects, session.userLabel);
@@ -197,9 +239,40 @@ export default function App() {
     );
   }, []);
 
-  const openDetail = useCallback((id: string) => {
+  const refreshStagesForOpenProject = useCallback(async (projectId: string) => {
+    try {
+      const stages = await fetchStagesByProjectId(projectId);
+      setProjects((prev) =>
+        prev.map((p) => {
+          if (p.id !== projectId) return p;
+          return withComputedProjectStatus({
+            ...p,
+            stages: mergeStagesWithPrevious(stages, p.stages),
+          });
+        })
+      );
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : 'Aşamalar yenilenemedi');
+    }
+  }, []);
+
+  const openDetail = useCallback(async (id: string) => {
     setDetailProjectId(id);
     setNoteDraft('');
+    try {
+      const stages = await fetchStagesByProjectId(id);
+      setProjects((prev) =>
+        prev.map((p) => {
+          if (p.id !== id) return p;
+          return withComputedProjectStatus({
+            ...p,
+            stages: mergeStagesWithPrevious(stages, p.stages),
+          });
+        })
+      );
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : 'Aşamalar yüklenemedi');
+    }
   }, []);
 
   const closeDetail = useCallback(() => {
@@ -208,52 +281,74 @@ export default function App() {
   }, []);
 
   const handleSorumlularChange = useCallback(
-    (stageId: string, sorumlular: string[]) => {
+    async (stageId: string, sorumlular: string[]) => {
       if (!detailProjectId) return;
-      updateProjectById(detailProjectId, (p) => ({
-        ...p,
-        stages: (p.stages ?? []).map((s) => (s.id === stageId ? reconcileStageAssignees(s, sorumlular) : s)),
-      }));
+      const userIds = [
+        ...new Set(
+          sorumlular
+            .map((n) => resolveBackendUserIdFromDisplayName(n))
+            .filter((x): x is number => x != null)
+        ),
+      ];
+      try {
+        const assigns = await assignUsersToStage(stageId, userIds);
+        updateProjectById(detailProjectId, (p) => ({
+          ...p,
+          stages: (p.stages ?? []).map((s) =>
+            s.id === stageId ? overlayStageFromAssignments(s, assigns) : s
+          ),
+        }));
+        setDataRefreshKey((k) => k + 1);
+      } catch (e) {
+        window.alert(e instanceof Error ? e.message : 'Atama kaydedilemedi');
+      }
     },
     [detailProjectId, updateProjectById]
   );
 
   const handleStageBitti = useCallback(
-    (stageId: string) => {
-      if (!detailProjectId || !session?.userLabel) return;
-      updateProjectById(detailProjectId, (p) => ({
-        ...p,
-        stages: (p.stages ?? []).map((s) => {
-          if (s.id !== stageId) return s;
-          if (role !== 'personel' && role !== 'yonetici') return s;
-          return appendStageCompletion(s, session.userLabel) ?? s;
-        }),
-      }));
+    async (stageId: string) => {
+      if (!detailProjectId) return;
+      if (session?.backendUserId == null) {
+        window.alert(
+          'Bu oturum için backend kullanıcı ID tanımlı değil. Girişte mustafa / dilek / ahmet kullanın.'
+        );
+        return;
+      }
+      try {
+        await completeStageAssignment(stageId, {
+          userId: session.backendUserId,
+          completionNote: '',
+        });
+        await refreshStagesForOpenProject(detailProjectId);
+        setDataRefreshKey((k) => k + 1);
+      } catch (e) {
+        window.alert(e instanceof Error ? e.message : 'Kayıt başarısız');
+      }
     },
-    [detailProjectId, role, session?.userLabel, updateProjectById]
+    [detailProjectId, session?.backendUserId, refreshStagesForOpenProject]
   );
 
   const handleStageOnayla = useCallback(
-    (stageId: string) => {
+    async (stageId: string) => {
       if (!detailProjectId || role !== 'yonetici') return;
-      updateProjectById(detailProjectId, (p) => ({
-        ...p,
-        stages: (p.stages ?? []).map((s) => (s.id === stageId && s.durum === 'mavi' ? { ...s, durum: 'yesil' } : s)),
-      }));
+      try {
+        await approveStage(stageId);
+        await refreshStagesForOpenProject(detailProjectId);
+        setDataRefreshKey((k) => k + 1);
+      } catch (e) {
+        window.alert(e instanceof Error ? e.message : 'Onay başarısız');
+      }
     },
-    [detailProjectId, role, updateProjectById]
+    [detailProjectId, role, refreshStagesForOpenProject]
   );
 
   const handleDeleteStage = useCallback(
-    (stageId: string) => {
+    (_stageId: string) => {
       if (!detailProjectId || role !== 'yonetici') return;
-      if (!confirm('Bu aşamayı silmek istiyor musunuz?')) return;
-      updateProjectById(detailProjectId, (p) => ({
-        ...p,
-        stages: (p.stages ?? []).filter((s) => s.id !== stageId),
-      }));
+      window.alert('Bu sürümde aşama silme için backend endpoint tanımlı değil.');
     },
-    [detailProjectId, role, updateProjectById]
+    [detailProjectId, role]
   );
 
   const handleSaveStageNote = useCallback(
@@ -267,54 +362,77 @@ export default function App() {
   );
 
   const handleAddStage = useCallback(
-    (projectId: string, payload: { isim: string; bitisTarihi: string; sorumlular: string[] }) => {
-      updateProjectById(projectId, (p) => ({
-        ...p,
-        stages: [
-          ...(p.stages ?? []),
-          {
-            id: createId('s'),
-            isim: payload.isim,
-            bitisTarihi: payload.bitisTarihi,
-            sorumlular: payload.sorumlular,
-            completedBy: [],
-            durum: 'bekliyor',
-            not: '',
-          },
-        ],
-      }));
+    async (projectId: string, payload: { isim: string; bitisTarihi: string; sorumlular: string[] }) => {
+      try {
+        let stage = await createStage(projectId, {
+          name: payload.isim,
+          dueDate: payload.bitisTarihi,
+          note: '',
+        });
+        const userIds = [
+          ...new Set(
+            payload.sorumlular
+              .map((n) => resolveBackendUserIdFromDisplayName(n))
+              .filter((x): x is number => x != null)
+          ),
+        ];
+        if (userIds.length) {
+          const assigns = await assignUsersToStage(stage.id, userIds);
+          stage = overlayStageFromAssignments(stage, assigns);
+        }
+        updateProjectById(projectId, (p) => ({
+          ...p,
+          stages: [...(p.stages ?? []), stage],
+        }));
+        setDataRefreshKey((k) => k + 1);
+      } catch (e) {
+        window.alert(e instanceof Error ? e.message : 'Aşama eklenemedi');
+      }
     },
     [updateProjectById]
   );
 
   const handleArchiveProject = useCallback(
-    (projectId: string) => {
+    async (projectId: string) => {
       if (role !== 'yonetici') return;
       if (!confirm('Bu projeyi arşive kaldırmak istiyor musunuz?')) return;
-      setProjects((prev) => prev.map((p) => (p.id === projectId ? { ...p, archived: true } : p)));
+      try {
+        await setProjectArchived(projectId, true);
+        await loadProjectsFromBackend();
+        setDataRefreshKey((k) => k + 1);
+      } catch (e) {
+        window.alert(e instanceof Error ? e.message : 'Arşivleme başarısız');
+      }
     },
-    [role]
+    [role, loadProjectsFromBackend]
   );
 
   const handleMarkDelivered = useCallback(
-    (projectId: string) => {
+    async (projectId: string) => {
       if (role !== 'yonetici') return;
-      setProjects((prev) =>
-        prev.map((p) => {
-          if (p.id !== projectId || p.archived || p.durum !== 'hazir') return p;
-          return { ...p, durum: 'yesil' };
-        })
-      );
+      try {
+        await deliverProject(projectId);
+        await loadProjectsFromBackend();
+        setDataRefreshKey((k) => k + 1);
+      } catch (e) {
+        window.alert(e instanceof Error ? e.message : 'Teslim işlemi başarısız');
+      }
     },
-    [role]
+    [role, loadProjectsFromBackend]
   );
 
   const handleUnarchiveProject = useCallback(
-    (projectId: string) => {
+    async (projectId: string) => {
       if (role !== 'yonetici') return;
-      setProjects((prev) => prev.map((p) => (p.id === projectId ? { ...p, archived: false } : p)));
+      try {
+        await setProjectArchived(projectId, false);
+        await loadProjectsFromBackend();
+        setDataRefreshKey((k) => k + 1);
+      } catch (e) {
+        window.alert(e instanceof Error ? e.message : 'Arşivden çıkarma başarısız');
+      }
     },
-    [role]
+    [role, loadProjectsFromBackend]
   );
 
   const handleAddNote = useCallback(() => {
@@ -338,7 +456,7 @@ export default function App() {
         endDate: payload.bitisTarihi,
       });
       await loadProjectsFromBackend();
-      setChartRefreshKey((k) => k + 1);
+      setDataRefreshKey((k) => k + 1);
     },
     [loadProjectsFromBackend]
   );
@@ -447,26 +565,26 @@ export default function App() {
                 <StatsCard
                   variant="critical"
                   title="KRİTİK (≤3 GÜN)"
-                  value={stats.kritikCount}
+                  value={dashboardStats.kritikCount}
                   subtitle="Proje teslim tarihine ≤3 gün"
                   footerLeft="En yakını"
-                  footerRight={stats.nearestName}
+                  footerRight={dashboardStats.kritikNearestName}
                 />
                 <StatsCard
                   variant="sky"
                   title="ONAY BEKLEYEN (MAVİ)"
-                  value={stats.maviCount}
-                  subtitle="Aşama / proje onayı bekleniyor"
+                  value={dashboardStats.maviStageCount}
+                  subtitle="Onay bekleyen aşama (backend sayımı)"
                   footerLeft="Bekleyen"
-                  footerRight={`${stats.maviCount} proje`}
+                  footerRight={`${dashboardStats.maviStageCount} aşama`}
                 />
                 <StatsCard
                   variant="emerald"
                   title="TESLİM EDİLDİ (YEŞİL)"
-                  value={stats.yesilCount}
-                  subtitle="Tüm aşamalar onaylı"
+                  value={dashboardStats.yesilDeliveredCount}
+                  subtitle="Teslim edilmiş proje sayısı"
                   footerLeft="Son teslim"
-                  footerRight={stats.sonYesilName}
+                  footerRight="—"
                 />
               </section>
 
@@ -515,7 +633,7 @@ export default function App() {
                 </div>
 
                 <aside className="min-w-0 lg:col-span-4 lg:self-start">
-                  <GlobalChart refreshKey={chartRefreshKey} />
+                  <GlobalChart refreshKey={dataRefreshKey} />
                 </aside>
               </section>
 

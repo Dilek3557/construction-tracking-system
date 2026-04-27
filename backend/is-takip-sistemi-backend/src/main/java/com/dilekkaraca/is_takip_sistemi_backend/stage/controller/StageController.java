@@ -33,8 +33,8 @@ public class StageControlller {
     }
 
     @GetMapping("/{stageId}")
-    public Stage getStageById(@PathVariable Long stageId) {
-        return stageService.getStageById(stageId);
+    public StageResponse getStageById(@PathVariable Long stageId) {
+        return stageService.getStageByIdResponse(stageId);
     }
 
     @PutMapping("/{stageId}/assign-users")
@@ -44,6 +44,7 @@ public class StageControlller {
     ) {
         return stageService.assignUsersToStage(stageId, request.getUserIds());
     }
+
     @PutMapping("/{stageId}/complete")
     public StageAssignment completeMyAssignment(
             @PathVariable Long stageId,
@@ -57,8 +58,7 @@ public class StageControlller {
     }
 
     @PutMapping("/{stageId}/approve")
-    public Stage approveStage(@PathVariable Long stageId) {
+    public StageResponse approveStage(@PathVariable Long stageId) {
         return stageService.approveStage(stageId);
     }
-
 }
