@@ -1,7 +1,9 @@
 package com.dilekkaraca.is_takip_sistemi_backend.announcement.service;
 
+import com.dilekkaraca.is_takip_sistemi_backend.announcement.dto.OfficeAnnouncementResponse;
 import com.dilekkaraca.is_takip_sistemi_backend.announcement.entity.OfficeAnnouncement;
 import com.dilekkaraca.is_takip_sistemi_backend.announcement.repository.OfficeAnnouncementRepository;
+import com.dilekkaraca.is_takip_sistemi_backend.exception.UserNotFoundException;
 import com.dilekkaraca.is_takip_sistemi_backend.user.entity.User;
 import com.dilekkaraca.is_takip_sistemi_backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,16 +18,16 @@ public class OfficeAnnouncementService {
 
     private final OfficeAnnouncementRepository officeAnnouncementRepository;
     private final UserRepository userRepository;
-
-    public Optional<OfficeAnnouncement> getCurrentAnnouncement() {
-        return officeAnnouncementRepository.findTopByOrderByUpdatedAtDesc();
+    public Optional<OfficeAnnouncementResponse> getCurrentAnnouncement() {
+        return officeAnnouncementRepository.findTopByOrderByUpdatedAtDesc()
+                .map(this::mapToResponse);
     }
 
     @Transactional
-    public OfficeAnnouncement saveOrUpdateAnnouncement(Long userId, String message) {
+    public OfficeAnnouncementResponse saveOrUpdateAnnouncement(Long userId, String message) {
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Kullanıcı bulunamadı. Id: " + userId));
+                .orElseThrow(() -> new UserNotFoundException(userId));
 
         Optional<OfficeAnnouncement> optionalAnnouncement =
                 officeAnnouncementRepository.findTopByOrderByUpdatedAtDesc();
@@ -36,7 +38,8 @@ public class OfficeAnnouncementService {
             announcement.setUpdatedBy(user);
             announcement.setRevision(announcement.getRevision() + 1);
 
-            return officeAnnouncementRepository.save(announcement);
+            OfficeAnnouncement saved = officeAnnouncementRepository.save(announcement);
+            return mapToResponse(saved);
         }
 
         OfficeAnnouncement newAnnouncement = OfficeAnnouncement.builder()
@@ -46,6 +49,29 @@ public class OfficeAnnouncementService {
                 .updatedBy(user)
                 .build();
 
-        return officeAnnouncementRepository.save(newAnnouncement);
+        OfficeAnnouncement saved = officeAnnouncementRepository.save(newAnnouncement);
+        return mapToResponse(saved);
+    }
+
+    private OfficeAnnouncementResponse mapToResponse(OfficeAnnouncement announcement) {
+        return OfficeAnnouncementResponse.builder()
+                .id(announcement.getId())
+                .message(announcement.getMessage())
+                .revision(announcement.getRevision())
+                .createdByUserId(
+                        announcement.getCreatedBy() != null ? announcement.getCreatedBy().getId() : null
+                )
+                .createdByName(
+                        announcement.getCreatedBy() != null ? announcement.getCreatedBy().getDisplayName() : null
+                )
+                .updatedByUserId(
+                        announcement.getUpdatedBy() != null ? announcement.getUpdatedBy().getId() : null
+                )
+                .updatedByName(
+                        announcement.getUpdatedBy() != null ? announcement.getUpdatedBy().getDisplayName() : null
+                )
+                .createdAt(announcement.getCreatedAt())
+                .updatedAt(announcement.getUpdatedAt())
+                .build();
     }
 }

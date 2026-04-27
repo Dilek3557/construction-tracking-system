@@ -1,7 +1,10 @@
 package com.dilekkaraca.is_takip_sistemi_backend.generalnote.controller;
 
+import com.dilekkaraca.is_takip_sistemi_backend.generalnote.dto.GeneralNoteCreateRequest;
+import com.dilekkaraca.is_takip_sistemi_backend.generalnote.dto.GeneralNoteResponse;
 import com.dilekkaraca.is_takip_sistemi_backend.generalnote.entity.GeneralNote;
 import com.dilekkaraca.is_takip_sistemi_backend.generalnote.service.GeneralNoteService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,17 +16,19 @@ import java.util.List;
 public class GeneralNoteController {
 
     private final GeneralNoteService generalNoteService;
-
     @PostMapping
-    public GeneralNote addNote(
-            @RequestParam Long userId,
-            @RequestParam String message
+    public GeneralNoteResponse addNote(
+            @Valid @RequestBody GeneralNoteCreateRequest request
     ) {
-        return generalNoteService.addNote(userId, message);
+        return generalNoteService.addNote(
+                request.getUserId(),
+                request.getMessage()
+        );
     }
 
     @GetMapping
-    public List<GeneralNote> getAllNotes() {
+    public List<GeneralNoteResponse> getAllNotes() {
         return generalNoteService.getAllNotes();
     }
+
 }

@@ -2,6 +2,7 @@ package com.dilekkaraca.is_takip_sistemi_backend.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -40,6 +41,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleGeneral(Exception ex) {
         return buildResponse("Beklenmeyen bir hata oluştu.", HttpStatus.INTERNAL_SERVER_ERROR);
     }
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> handleValidationException(
+            MethodArgumentNotValidException ex
+    ) {
+        String message = ex.getBindingResult()
+                .getFieldErrors()
+                .get(0)
+                .getDefaultMessage();
+
+        return buildResponse(message, HttpStatus.BAD_REQUEST);
+    }
 
     // 🧠 Ortak response builder
     private ResponseEntity<Map<String, Object>> buildResponse(String message, HttpStatus status) {
@@ -51,4 +63,5 @@ public class GlobalExceptionHandler {
 
         return new ResponseEntity<>(response, status);
     }
+
 }

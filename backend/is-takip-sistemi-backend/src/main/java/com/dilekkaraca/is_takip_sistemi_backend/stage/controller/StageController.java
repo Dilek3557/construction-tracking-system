@@ -1,10 +1,6 @@
 package com.dilekkaraca.is_takip_sistemi_backend.stage.controller;
 
-import com.dilekkaraca.is_takip_sistemi_backend.stage.dto.AssignUsersRequest;
-import com.dilekkaraca.is_takip_sistemi_backend.stage.dto.CompleteAssignmentRequest;
-import com.dilekkaraca.is_takip_sistemi_backend.stage.dto.StageCreateRequest;
-import com.dilekkaraca.is_takip_sistemi_backend.stage.dto.StageResponse;
-import com.dilekkaraca.is_takip_sistemi_backend.stage.entity.Stage;
+import com.dilekkaraca.is_takip_sistemi_backend.stage.dto.*;
 import com.dilekkaraca.is_takip_sistemi_backend.stage.entity.StageAssignment;
 import com.dilekkaraca.is_takip_sistemi_backend.stage.service.StageService;
 import jakarta.validation.Valid;
@@ -16,7 +12,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/stages")
 @RequiredArgsConstructor
-public class StageControlller {
+
+public class StageController {
     private final StageService stageService;
 
     @PostMapping("/project/{projectId}")
@@ -38,7 +35,7 @@ public class StageControlller {
     }
 
     @PutMapping("/{stageId}/assign-users")
-    public List<StageAssignment> assignUsersToStage(
+    public List<StageAssignmentResponse> assignUsersToStage(
             @PathVariable Long stageId,
             @Valid @RequestBody AssignUsersRequest request
     ) {
@@ -46,7 +43,7 @@ public class StageControlller {
     }
 
     @PutMapping("/{stageId}/complete")
-    public StageAssignment completeMyAssignment(
+    public StageAssignmentResponse completeMyAssignment(
             @PathVariable Long stageId,
             @Valid @RequestBody CompleteAssignmentRequest request
     ) {

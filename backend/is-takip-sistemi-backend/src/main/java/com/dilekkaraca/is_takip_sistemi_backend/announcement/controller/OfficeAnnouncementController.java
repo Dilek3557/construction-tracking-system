@@ -1,9 +1,14 @@
 package com.dilekkaraca.is_takip_sistemi_backend.announcement.controller;
 
+import com.dilekkaraca.is_takip_sistemi_backend.announcement.dto.AnnouncementAckRequest;
+import com.dilekkaraca.is_takip_sistemi_backend.announcement.dto.AnnouncementAckResponse;
+import com.dilekkaraca.is_takip_sistemi_backend.announcement.dto.OfficeAnnouncementResponse;
+import com.dilekkaraca.is_takip_sistemi_backend.announcement.dto.OfficeAnnouncementUpdateRequest;
 import com.dilekkaraca.is_takip_sistemi_backend.announcement.entity.AnnouncementAck;
 import com.dilekkaraca.is_takip_sistemi_backend.announcement.entity.OfficeAnnouncement;
 import com.dilekkaraca.is_takip_sistemi_backend.announcement.service.AnnouncementAckService;
 import com.dilekkaraca.is_takip_sistemi_backend.announcement.service.OfficeAnnouncementService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,24 +23,29 @@ public class OfficeAnnouncementController {
     private final AnnouncementAckService announcementAckService;
 
     @GetMapping("/current")
-    public Optional<OfficeAnnouncement> getCurrentAnnouncement() {
+    public Optional<OfficeAnnouncementResponse> getCurrentAnnouncement() {
         return officeAnnouncementService.getCurrentAnnouncement();
     }
 
     @PutMapping("/current")
-    public OfficeAnnouncement saveOrUpdateAnnouncement(
-            @RequestParam Long userId,
-            @RequestParam String message
+    public OfficeAnnouncementResponse saveOrUpdateAnnouncement(
+            @Valid @RequestBody OfficeAnnouncementUpdateRequest request
     ) {
-        return officeAnnouncementService.saveOrUpdateAnnouncement(userId, message);
+        return officeAnnouncementService.saveOrUpdateAnnouncement(
+                request.getUserId(),
+                request.getMessage()
+        );
     }
 
     @PostMapping("/{announcementId}/ack")
-    public AnnouncementAck acknowledgeAnnouncement(
+    public AnnouncementAckResponse acknowledgeAnnouncement(
             @PathVariable Long announcementId,
-            @RequestParam Long userId
+            @Valid @RequestBody AnnouncementAckRequest request
     ) {
-        return announcementAckService.acknowledgeAnnouncement(announcementId, userId);
+        return announcementAckService.acknowledgeAnnouncement(
+                announcementId,
+                request.getUserId()
+        );
     }
 
     @GetMapping("/{announcementId}/ack-status")

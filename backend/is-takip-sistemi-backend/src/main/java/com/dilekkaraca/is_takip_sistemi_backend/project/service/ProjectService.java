@@ -34,45 +34,65 @@ public class ProjectService {
 
         return mapToResponse(saved);
     }
-    public List<Project> getAllProjects() {
-        return projectRepository.findAll();
+    public List<ProjectResponse> getAllProjects() {
+        return projectRepository.findAll()
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
     }
 
-    public List<Project> getActiveProjects() {
-        return projectRepository.findByArchivedFalse();
+    public List<ProjectResponse> getActiveProjects() {
+        return projectRepository.findByArchivedFalse()
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
     }
 
-    public List<Project> getArchivedProjects() {
-        return projectRepository.findByArchivedTrue();
+    public List<ProjectResponse> getArchivedProjects() {
+        return projectRepository.findByArchivedTrue()
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
     }
-
     public Project getProjectById(Long id) {
         return projectRepository.findById(id)
                 .orElseThrow(() -> new ProjectNotFoundException(id));
     }
+    public ProjectResponse getProjectByIdResponse(Long id) {
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new ProjectNotFoundException(id));
+
+        return mapToResponse(project);
+    }
 
     @Transactional
-    public Project deliverProject(Long id) {
-        Project project = getProjectById(id);
+    public ProjectResponse deliverProject(Long id) {
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new ProjectNotFoundException(id));
 
         if (project.getStatus() != ProjectStatus.READY_FOR_DELIVERY) {
             throw new IllegalStateException("Bu proje henüz teslime hazır değil.");
         }
 
         project.setStatus(ProjectStatus.DELIVERED);
-        return projectRepository.save(project);
+        Project saved = projectRepository.save(project);
+
+        return mapToResponse(saved);
     }
 
     @Transactional
-    public Project archiveProject(Long id, boolean archived) {
-        Project project = getProjectById(id);
+    public ProjectResponse archiveProject(Long id, boolean archived) {
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new ProjectNotFoundException(id));
 
         if (archived && project.getStatus() != ProjectStatus.DELIVERED) {
             throw new IllegalStateException("Sadece teslim edilmiş projeler arşive alınabilir.");
         }
 
         project.setArchived(archived);
-        return projectRepository.save(project);
+        Project saved = projectRepository.save(project);
+
+        return mapToResponse(saved);
     }
     private ProjectResponse mapToResponse(Project project) {
         return ProjectResponse.builder()

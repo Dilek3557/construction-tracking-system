@@ -1,5 +1,7 @@
 package com.dilekkaraca.is_takip_sistemi_backend.common.service;
 
+import com.dilekkaraca.is_takip_sistemi_backend.common.dto.ProjectTypeDistributionResponse;
+import com.dilekkaraca.is_takip_sistemi_backend.project.dto.ProjectResponse;
 import com.dilekkaraca.is_takip_sistemi_backend.project.entity.Project;
 import com.dilekkaraca.is_takip_sistemi_backend.project.enums.ProjectStatus;
 import com.dilekkaraca.is_takip_sistemi_backend.project.repository.ProjectRepository;
@@ -21,12 +23,16 @@ public class DashboardService {
     private final ProjectRepository projectRepository;
     private final StageRepository stageRepository;
 
-    public List<Project> getCriticalProjects() {
+    public List<ProjectResponse> getCriticalProjects() {
         LocalDate threshold = LocalDate.now().plusDays(3);
+
         return projectRepository.findByEndDateLessThanEqualAndArchivedFalseAndStatusNot(
-                threshold,
-                ProjectStatus.DELIVERED
-        );
+                        threshold,
+                        ProjectStatus.DELIVERED
+                )
+                .stream()
+                .map(this::mapProjectToResponse)
+                .toList();
     }
 
     public long getWaitingApprovalStageCount() {
@@ -37,19 +43,29 @@ public class DashboardService {
         return projectRepository.countByStatus(ProjectStatus.DELIVERED);
     }
 
-    public List<Map<String, Object>> getProjectTypeDistribution() {
+
+    public List<ProjectTypeDistributionResponse> getProjectTypeDistribution() {
 
         List<Object[]> results = projectRepository.countProjectsByType();
 
-        List<Map<String, Object>> response = new ArrayList<>();
-
-        for (Object[] row : results) {
-            Map<String, Object> item = new HashMap<>();
-            item.put("name", row[0]);
-            item.put("count", row[1]);
-            response.add(item);
-        }
-
-        return response;
+        return results.stream()
+                .map(row -> ProjectTypeDistributionResponse.builder()
+                        .name((String) row[0])
+                        .count((Long) row[1])
+                        .build()
+                )
+                .toList();
+    }
+    private ProjectResponse mapProjectToResponse(Project project) {
+        return ProjectResponse.builder()
+                .id(project.getId())
+                .companyName(project.getCompanyName())
+                .name(project.getName())
+                .projectType(project.getProjectType())
+                .startDate(project.getStartDate())
+                .endDate(project.getEndDate())
+                .status(project.getStatus().name())
+                .archived(project.isArchived())
+                .build();
     }
 }

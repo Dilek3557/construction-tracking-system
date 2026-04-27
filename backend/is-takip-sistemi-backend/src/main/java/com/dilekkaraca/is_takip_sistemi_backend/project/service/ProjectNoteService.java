@@ -1,5 +1,8 @@
 package com.dilekkaraca.is_takip_sistemi_backend.project.service;
 
+import com.dilekkaraca.is_takip_sistemi_backend.exception.ProjectNotFoundException;
+import com.dilekkaraca.is_takip_sistemi_backend.exception.UserNotFoundException;
+import com.dilekkaraca.is_takip_sistemi_backend.project.dto.ProjectNoteResponse;
 import com.dilekkaraca.is_takip_sistemi_backend.project.entity.Project;
 import com.dilekkaraca.is_takip_sistemi_backend.project.entity.ProjectNote;
 import com.dilekkaraca.is_takip_sistemi_backend.project.repository.ProjectNoteRepository;
@@ -19,15 +22,14 @@ public class ProjectNoteService {
     private final ProjectNoteRepository projectNoteRepository;
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
-
     @Transactional
-    public ProjectNote addNote(Long projectId, Long userId, String message) {
+    public ProjectNoteResponse addNote(Long projectId, Long userId, String message) {
 
         Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new RuntimeException("Proje bulunamadı. Id: " + projectId));
+                .orElseThrow(() -> new ProjectNotFoundException(projectId));
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Kullanıcı bulunamadı. Id: " + userId));
+                .orElseThrow(() -> new UserNotFoundException(userId));
 
         ProjectNote note = ProjectNote.builder()
                 .project(project)
@@ -35,10 +37,26 @@ public class ProjectNoteService {
                 .message(message)
                 .build();
 
-        return projectNoteRepository.save(note);
+        ProjectNote saved = projectNoteRepository.save(note);
+
+        return mapToResponse(saved);
     }
 
-    public List<ProjectNote> getNotesByProject(Long projectId) {
-        return projectNoteRepository.findByProjectIdOrderByCreatedAtAsc(projectId);
+    public List<ProjectNoteResponse> getNotesByProject(Long projectId) {
+        return projectNoteRepository.findByProjectIdOrderByCreatedAtAsc(projectId)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    private ProjectNoteResponse mapToResponse(ProjectNote note) {
+        return ProjectNoteResponse.builder()
+                .id(note.getId())
+                .projectId(note.getProject().getId())
+                .authorUserId(note.getAuthor().getId())
+                .authorName(note.getAuthor().getDisplayName())
+                .message(note.getMessage())
+                .createdAt(note.getCreatedAt())
+                .build();
     }
 }

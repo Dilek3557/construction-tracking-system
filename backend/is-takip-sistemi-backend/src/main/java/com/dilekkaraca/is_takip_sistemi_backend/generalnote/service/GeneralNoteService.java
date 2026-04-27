@@ -1,5 +1,7 @@
 package com.dilekkaraca.is_takip_sistemi_backend.generalnote.service;
 
+import com.dilekkaraca.is_takip_sistemi_backend.exception.UserNotFoundException;
+import com.dilekkaraca.is_takip_sistemi_backend.generalnote.dto.GeneralNoteResponse;
 import com.dilekkaraca.is_takip_sistemi_backend.generalnote.entity.GeneralNote;
 import com.dilekkaraca.is_takip_sistemi_backend.generalnote.repository.GeneralNoteRepository;
 import com.dilekkaraca.is_takip_sistemi_backend.user.entity.User;
@@ -16,22 +18,36 @@ public class GeneralNoteService {
 
     private final GeneralNoteRepository generalNoteRepository;
     private final UserRepository userRepository;
-
     @Transactional
-    public GeneralNote addNote(Long userId, String message) {
+    public GeneralNoteResponse addNote(Long userId, String message) {
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Kullanıcı bulunamadı. Id: " + userId));
+                .orElseThrow(() -> new UserNotFoundException(userId));
 
         GeneralNote note = GeneralNote.builder()
                 .author(user)
                 .message(message)
                 .build();
 
-        return generalNoteRepository.save(note);
+        GeneralNote saved = generalNoteRepository.save(note);
+
+        return mapToResponse(saved);
     }
 
-    public List<GeneralNote> getAllNotes() {
-        return generalNoteRepository.findAllByOrderByCreatedAtDesc();
+    public List<GeneralNoteResponse> getAllNotes() {
+        return generalNoteRepository.findAllByOrderByCreatedAtDesc()
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    private GeneralNoteResponse mapToResponse(GeneralNote note) {
+        return GeneralNoteResponse.builder()
+                .id(note.getId())
+                .authorUserId(note.getAuthor().getId())
+                .authorName(note.getAuthor().getDisplayName())
+                .message(note.getMessage())
+                .createdAt(note.getCreatedAt())
+                .build();
     }
 }

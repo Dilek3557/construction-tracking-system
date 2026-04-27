@@ -1,6 +1,8 @@
 package com.dilekkaraca.is_takip_sistemi_backend.common.controller;
 
+import com.dilekkaraca.is_takip_sistemi_backend.common.dto.ProjectTypeDistributionResponse;
 import com.dilekkaraca.is_takip_sistemi_backend.common.service.DashboardService;
+import com.dilekkaraca.is_takip_sistemi_backend.project.dto.ProjectResponse;
 import com.dilekkaraca.is_takip_sistemi_backend.project.entity.Project;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -14,12 +16,10 @@ import java.util.Map;
 public class DashboardController {
 
     private final DashboardService dashboardService;
-
     @GetMapping("/critical-projects")
-    public List<Project> getCriticalProjects() {
+    public List<ProjectResponse> getCriticalProjects() {
         return dashboardService.getCriticalProjects();
     }
-
     @GetMapping("/waiting-approval-stage-count")
     public long getWaitingApprovalStageCount() {
         return dashboardService.getWaitingApprovalStageCount();
@@ -31,7 +31,7 @@ public class DashboardController {
     }
 
     @GetMapping("/project-type-distribution")
-    public List<Map<String, Object>> getProjectTypeDistribution() {
+    public List<ProjectTypeDistributionResponse> getProjectTypeDistribution() {
         return dashboardService.getProjectTypeDistribution();
     }
 }

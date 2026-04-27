@@ -7,6 +7,7 @@ import com.dilekkaraca.is_takip_sistemi_backend.exception.StageNotFoundException
 import com.dilekkaraca.is_takip_sistemi_backend.exception.UserNotFoundException;
 import com.dilekkaraca.is_takip_sistemi_backend.project.entity.Project;
 import com.dilekkaraca.is_takip_sistemi_backend.project.repository.ProjectRepository;
+import com.dilekkaraca.is_takip_sistemi_backend.stage.dto.StageAssignmentResponse;
 import com.dilekkaraca.is_takip_sistemi_backend.stage.dto.StageCreateRequest;
 import com.dilekkaraca.is_takip_sistemi_backend.stage.dto.StageResponse;
 import com.dilekkaraca.is_takip_sistemi_backend.stage.entity.Stage;
@@ -61,8 +62,12 @@ public class StageService {
         return stageRepository.findById(stageId)
                 .orElseThrow(() -> new StageNotFoundException(stageId));
     }
+    public StageResponse getStageByIdResponse(Long stageId) {
+        Stage stage = getStageById(stageId);
+        return mapToResponse(stage);
+    }
 
-    public List<StageAssignment> assignUsersToStage(Long stageId, List<Long> userIds) {
+    public List<StageAssignmentResponse> assignUsersToStage(Long stageId, List<Long> userIds) {
         Stage stage = getStageById(stageId);
 
         List<StageAssignment> existingAssignments = stageAssignmentRepository.findByStageId(stageId);
@@ -84,11 +89,13 @@ public class StageService {
 
         stage.setStatus(StageStatus.PENDING);
         stageRepository.save(stage);
+        return stageAssignmentRepository.saveAll(newAssignments)
+                .stream()
+                .map(this::mapAssignmentToResponse)
+                .toList();
 
-        return stageAssignmentRepository.saveAll(newAssignments);
     }
-
-    public StageAssignment completeMyAssignment(Long stageId, Long userId, String completionNote) {
+    public StageAssignmentResponse completeMyAssignment(Long stageId, Long userId, String completionNote) {
         StageAssignment assignment = stageAssignmentRepository.findByStageIdAndUserId(stageId, userId)
                 .orElseThrow(() -> new RuntimeException("Bu kullanıcı bu stage'e atanmış değil."));
 
@@ -110,10 +117,10 @@ public class StageService {
             stageRepository.save(stage);
         }
 
-        return savedAssignment;
+        return mapAssignmentToResponse(savedAssignment);
     }
 
-    public Stage approveStage(Long stageId) {
+    public StageResponse approveStage(Long stageId) {
         Stage stage = getStageById(stageId);
 
         if (stage.getStatus() != StageStatus.WAITING_APPROVAL) {
@@ -121,7 +128,9 @@ public class StageService {
         }
 
         stage.setStatus(StageStatus.APPROVED);
-        return stageRepository.save(stage);
+        Stage saved = stageRepository.save(stage);
+
+        return mapToResponse(saved);
     }
     private StageResponse mapToResponse(Stage stage) {
         return StageResponse.builder()
@@ -131,6 +140,17 @@ public class StageService {
                 .dueDate(stage.getDueDate())
                 .status(stage.getStatus().name())
                 .note(stage.getNote())
+                .build();
+    }
+    private StageAssignmentResponse mapAssignmentToResponse(StageAssignment assignment) {
+        return StageAssignmentResponse.builder()
+                .id(assignment.getId())
+                .stageId(assignment.getStage().getId())
+                .userId(assignment.getUser().getId())
+                .userDisplayName(assignment.getUser().getDisplayName())
+                .completed(assignment.isCompleted())
+                .completionNote(assignment.getCompletionNote())
+                .completedAt(assignment.getCompletedAt())
                 .build();
     }
 }

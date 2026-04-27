@@ -1,5 +1,6 @@
 package com.dilekkaraca.is_takip_sistemi_backend.announcement.service;
 
+import com.dilekkaraca.is_takip_sistemi_backend.announcement.dto.AnnouncementAckResponse;
 import com.dilekkaraca.is_takip_sistemi_backend.announcement.entity.AnnouncementAck;
 import com.dilekkaraca.is_takip_sistemi_backend.announcement.entity.OfficeAnnouncement;
 import com.dilekkaraca.is_takip_sistemi_backend.announcement.repository.AnnouncementAckRepository;
@@ -19,7 +20,7 @@ public class AnnouncementAckService {
     private final UserRepository userRepository;
 
     @Transactional
-    public AnnouncementAck acknowledgeAnnouncement(Long announcementId, Long userId) {
+    public AnnouncementAckResponse acknowledgeAnnouncement(Long announcementId, Long userId) {
 
         OfficeAnnouncement announcement = officeAnnouncementRepository.findById(announcementId)
                 .orElseThrow(() -> new RuntimeException("Duyuru bulunamadı. Id: " + announcementId));
@@ -43,7 +44,9 @@ public class AnnouncementAckService {
                 .revision(announcement.getRevision())
                 .build();
 
-        return announcementAckRepository.save(ack);
+        AnnouncementAck saved = announcementAckRepository.save(ack);
+
+        return mapToResponse(saved);
     }
 
     public boolean hasUserReadCurrentRevision(Long announcementId, Long userId) {
@@ -56,5 +59,16 @@ public class AnnouncementAckService {
                 userId,
                 announcement.getRevision()
         );
+    }
+
+    private AnnouncementAckResponse mapToResponse(AnnouncementAck ack) {
+        return AnnouncementAckResponse.builder()
+                .id(ack.getId())
+                .announcementId(ack.getAnnouncement().getId())
+                .userId(ack.getUser().getId())
+                .userDisplayName(ack.getUser().getDisplayName())
+                .revision(ack.getRevision())
+                .readAt(ack.getReadAt())
+                .build();
     }
 }

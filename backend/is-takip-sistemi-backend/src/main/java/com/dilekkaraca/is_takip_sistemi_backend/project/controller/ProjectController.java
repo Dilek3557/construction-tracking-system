@@ -2,7 +2,6 @@ package com.dilekkaraca.is_takip_sistemi_backend.project.controller;
 
 import com.dilekkaraca.is_takip_sistemi_backend.project.dto.ProjectCreateRequest;
 import com.dilekkaraca.is_takip_sistemi_backend.project.dto.ProjectResponse;
-import com.dilekkaraca.is_takip_sistemi_backend.project.entity.Project;
 import com.dilekkaraca.is_takip_sistemi_backend.project.service.ProjectService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,32 +22,32 @@ public class ProjectController {
     }
 
     @GetMapping
-    public List<Project> getAllProjects() {
+    public List<ProjectResponse> getAllProjects() {
         return projectService.getAllProjects();
     }
 
     @GetMapping("/active")
-    public List<Project> getActiveProjects() {
+    public List<ProjectResponse> getActiveProjects() {
         return projectService.getActiveProjects();
     }
 
     @GetMapping("/archived")
-    public List<Project> getArchivedProjects() {
+    public List<ProjectResponse> getArchivedProjects() {
         return projectService.getArchivedProjects();
     }
 
     @GetMapping("/{id}")
-    public Project getProjectById(@PathVariable Long id) {
-        return projectService.getProjectById(id);
+    public ProjectResponse getProjectById(@PathVariable Long id) {
+        return projectService.getProjectByIdResponse(id);
     }
 
     @PutMapping("/{id}/deliver")
-    public Project deliverProject(@PathVariable Long id) {
+    public ProjectResponse deliverProject(@PathVariable Long id) {
         return projectService.deliverProject(id);
     }
 
     @PutMapping("/{id}/archive")
-    public Project archiveProject(
+    public ProjectResponse archiveProject(
             @PathVariable Long id,
             @RequestParam boolean archived
     ) {
