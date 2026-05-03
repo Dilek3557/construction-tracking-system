@@ -32,8 +32,12 @@ export interface Stage {
   isim: string;
   bitisTarihi: string;
   sorumlular: string[];
+  /** Backend user ids assigned to this stage (preferred). */
+  sorumluUserIds?: number[];
   /** Bu aşamada "BİTTİ" demiş sorumlular (sorumlular dizisindeki görünen adlarla eşleşirr). */
   completedBy: string[];
+  /** Backend user ids who completed their assignment (preferred). */
+  completedUserIds?: number[];
   durum: StageDurum;
   not: string;
 }

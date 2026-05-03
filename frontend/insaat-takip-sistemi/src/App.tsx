@@ -12,9 +12,7 @@ import MyTasksPage from './components/MyTasksPage';
 import StaffManagementPage from './components/StaffManagementPage';
 import { daysUntil } from './lib/date';
 import { withComputedProjectStatus } from './lib/stage';
-import { buildMyTaskRows } from './lib/myTasks';
-import { createId } from './lib/id';
-import { NAME_ADMIN, NAME_DILEK, STAFF_LIST, resolveBackendUserIdFromDisplayName } from './constants';
+import type { MyTaskRow } from './lib/myTasks';
 import {
   createProject,
   deliverProject,
@@ -35,6 +33,15 @@ import {
   fetchDeliveredProjectCount,
   fetchWaitingApprovalStageCount,
 } from './api/dashboardApi';
+import { fetchUsers, type UserResponse } from './api/usersApi';
+import { addProjectNote, fetchProjectNotes } from './api/projectNotesApi';
+import { addGeneralNote, fetchGeneralNotes } from './api/generalNotesApi';
+import {
+  acknowledgeAnnouncement,
+  fetchAckStatus,
+  fetchCurrentAnnouncement,
+  updateCurrentAnnouncement,
+} from './api/announcementsApi';
 import * as apiService from './api/apiService';
 import type {
   AppCurrentPage,
@@ -64,17 +71,19 @@ export default function App() {
     const initialRole = apiService.getSession()?.role ?? apiService.getRole();
     return apiService.getCurrentPage(initialRole);
   });
-  const [duyuru, setDuyuru] = useState<DuyuruState>(() => apiService.getDuyuru());
-  const [duyuruDraft, setDuyuruDraft] = useState<string>(() => apiService.getDuyuru().text);
-  const [duyuruAck, setDuyuruAck] = useState<DuyuruAck | null>(() => apiService.getDuyuruAck());
-  const [genelNotlar, setGenelNotlar] = useState<GenelNot[]>(() => apiService.getGenelNotlar());
+  const [duyuru, setDuyuru] = useState<DuyuruState>({ text: '', revision: 1 });
+  const [duyuruDraft, setDuyuruDraft] = useState<string>('');
+  const [duyuruAck, setDuyuruAck] = useState<DuyuruAck | null>(null);
+  const [genelNotlar, setGenelNotlar] = useState<GenelNot[]>([]);
   const [genelNotDraft, setGenelNotDraft] = useState<string>('');
-  const [managedUsers, setManagedUsers] = useState<ManagedUser[]>(() => apiService.getUsers());
+  const [backendUsers, setBackendUsers] = useState<UserResponse[]>([]);
 
   const [detailProjectId, setDetailProjectId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState<string>('');
   const [newProjectOpen, setNewProjectOpen] = useState<boolean>(false);
   const [yoneticiListe, setYoneticiListe] = useState<YoneticiListe>('aktif');
+  const [announcementId, setAnnouncementId] = useState<number | null>(null);
+  const [myTasksRows, setMyTasksRows] = useState<MyTaskRow[]>([]);
 
   const loadProjectsFromBackend = useCallback(async () => {
     try {
@@ -112,13 +121,129 @@ export default function App() {
     }
   }, []);
 
+  const loadUsersFromBackend = useCallback(async () => {
+    try {
+      const list = await fetchUsers();
+      setBackendUsers(list);
+    } catch (e) {
+      setBackendUsers([]);
+      console.warn(e);
+    }
+  }, []);
+
+  /** Personel sayfası: hata kullanıcıya gösterilsin */
+  const reloadUsersFromBackendStrict = useCallback(async () => {
+    const list = await fetchUsers();
+    setBackendUsers(list);
+  }, []);
+
+  const loadMyTasksFromBackend = useCallback(async () => {
+    if (!session || session.backendUserId == null) {
+      setMyTasksRows([]);
+      return;
+    }
+    try {
+      const activeProjects = await fetchProjectsFromApi('active');
+      const stagesByProject = await Promise.all(
+        activeProjects.map(async (p) => {
+          const stages = await fetchStagesByProjectId(p.id);
+          return { project: p, stages };
+        })
+      );
+
+      const out: MyTaskRow[] = [];
+      for (const item of stagesByProject) {
+        for (const stage of item.stages) {
+          const assigned = stage.sorumluUserIds ?? [];
+          if (!assigned.includes(session.backendUserId)) continue;
+          out.push({
+            projectId: item.project.id,
+            projectName: item.project.isim,
+            firmaAdi: item.project.firmaAdi,
+            stage,
+            completed: (stage.completedUserIds ?? []).includes(session.backendUserId),
+          });
+        }
+      }
+      out.sort((a, b) => a.stage.bitisTarihi.localeCompare(b.stage.bitisTarihi));
+      setMyTasksRows(out);
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : 'Görevlerim yüklenemedi');
+      setMyTasksRows([]);
+    }
+  }, [session]);
+
+  const ensureSessionBackendUserId = useCallback(
+    (users: readonly UserResponse[]) => {
+      setSession((prev) => {
+        if (!prev) return prev;
+        if (typeof prev.backendUserId === 'number' && Number.isFinite(prev.backendUserId)) return prev;
+        const u = users.find((x) => x.username.toLowerCase() === prev.userLabel.trim().toLowerCase());
+        if (!u) return prev;
+        const next = { ...prev, backendUserId: u.id };
+        apiService.setSession(next);
+        return next;
+      });
+    },
+    [setSession]
+  );
+
   useEffect(() => {
     if (!session) {
       setProjects([]);
       return;
     }
     void loadProjectsFromBackend();
-  }, [session, loadProjectsFromBackend]);
+    void (async () => {
+      await loadUsersFromBackend();
+    })();
+  }, [session, loadProjectsFromBackend, loadUsersFromBackend]);
+
+  useEffect(() => {
+    if (!session) return;
+    if (backendUsers.length) ensureSessionBackendUserId(backendUsers);
+  }, [backendUsers, ensureSessionBackendUserId, session]);
+
+  const loadAnnouncementFromBackend = useCallback(async () => {
+    try {
+      const current = await fetchCurrentAnnouncement();
+      if (!current) {
+        setAnnouncementId(null);
+        setDuyuru({ text: '', revision: 1 });
+        setDuyuruDraft('');
+        setDuyuruAck(null);
+        return;
+      }
+      setAnnouncementId(current.id);
+      setDuyuru({ text: current.message, revision: current.revision });
+      setDuyuruDraft(current.message);
+      if (session?.backendUserId != null) {
+        const ok = await fetchAckStatus(current.id, session.backendUserId);
+        setDuyuruAck(ok ? { revision: current.revision, at: Date.now() } : null);
+      } else {
+        setDuyuruAck(null);
+      }
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : 'Duyuru yüklenemedi');
+    }
+  }, [session?.backendUserId]);
+
+  const loadGeneralNotesFromBackend = useCallback(async () => {
+    try {
+      const rows = await fetchGeneralNotes();
+      setGenelNotlar(
+        rows.map((r) => ({
+          id: String(r.id),
+          yazar: r.authorName,
+          metin: r.message,
+          zaman: Number.isFinite(Date.parse(r.createdAt)) ? Date.parse(r.createdAt) : Date.now(),
+        }))
+      );
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : 'Genel notlar yüklenemedi');
+      setGenelNotlar([]);
+    }
+  }, []);
 
   useEffect(() => {
     if (!session || currentPage !== 'dashboard') return;
@@ -126,24 +251,21 @@ export default function App() {
   }, [session, currentPage, dataRefreshKey, loadDashboardStats]);
 
   useEffect(() => {
+    if (!session || currentPage !== 'dashboard') return;
+    void loadAnnouncementFromBackend();
+    void loadGeneralNotesFromBackend();
+  }, [session, currentPage, dataRefreshKey, loadAnnouncementFromBackend, loadGeneralNotesFromBackend]);
+
+  useEffect(() => {
+    if (!session || currentPage !== 'myTasks') return;
+    void loadMyTasksFromBackend();
+  }, [session, currentPage, dataRefreshKey, loadMyTasksFromBackend]);
+
+  useEffect(() => {
     apiService.setRole(role);
   }, [role]);
 
-  useEffect(() => {
-    apiService.setDuyuru(duyuru);
-  }, [duyuru]);
-
-  useEffect(() => {
-    apiService.setDuyuruAck(duyuruAck);
-  }, [duyuruAck]);
-
-  useEffect(() => {
-    apiService.setGenelNotlar(genelNotlar);
-  }, [genelNotlar]);
-
-  useEffect(() => {
-    apiService.saveUsers(managedUsers);
-  }, [managedUsers]);
+  // duyuru / genel notlar artık backend üzerinden senkron; localStorage'a yazma.
 
   useEffect(() => {
     const effectiveRole = session?.role ?? role;
@@ -220,15 +342,13 @@ export default function App() {
 
   const archiveProjects = useMemo<Project[]>(() => projects.filter((p) => p.archived), [projects]);
 
-  const myTaskRows = useMemo(() => {
-    if (!session?.userLabel) return [];
-    return buildMyTaskRows(projects, session.userLabel);
-  }, [projects, session?.userLabel]);
-
-  const assignableDisplayNames = useMemo(() => {
-    const list = apiService.getAssignableDisplayNames(managedUsers);
-    return list.length > 0 ? list : [...STAFF_LIST];
-  }, [managedUsers]);
+  const assignableUsers = useMemo(() => {
+    return backendUsers
+      .filter((u) => u.active)
+      .slice()
+      .sort((a, b) => a.displayName.localeCompare(b.displayName, 'tr'))
+      .map((u) => ({ id: u.id, displayName: u.displayName }));
+  }, [backendUsers]);
 
   const updateProjectById = useCallback((projectId: string, updater: (p: Project) => Project) => {
     setProjects((prev) =>
@@ -273,6 +393,26 @@ export default function App() {
     } catch (e) {
       window.alert(e instanceof Error ? e.message : 'Aşamalar yüklenemedi');
     }
+
+    try {
+      const notes = await fetchProjectNotes(id);
+      setProjects((prev) =>
+        prev.map((p) => {
+          if (p.id !== id) return p;
+          return {
+            ...p,
+            notes: notes.map((n) => ({
+              id: String(n.id),
+              yazar: n.authorName,
+              metin: n.message,
+              zaman: Number.isFinite(Date.parse(n.createdAt)) ? Date.parse(n.createdAt) : Date.now(),
+            })),
+          };
+        })
+      );
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : 'Notlar yüklenemedi');
+    }
   }, []);
 
   const closeDetail = useCallback(() => {
@@ -281,15 +421,8 @@ export default function App() {
   }, []);
 
   const handleSorumlularChange = useCallback(
-    async (stageId: string, sorumlular: string[]) => {
+    async (stageId: string, userIds: number[]) => {
       if (!detailProjectId) return;
-      const userIds = [
-        ...new Set(
-          sorumlular
-            .map((n) => resolveBackendUserIdFromDisplayName(n))
-            .filter((x): x is number => x != null)
-        ),
-      ];
       try {
         const assigns = await assignUsersToStage(stageId, userIds);
         updateProjectById(detailProjectId, (p) => ({
@@ -362,22 +495,16 @@ export default function App() {
   );
 
   const handleAddStage = useCallback(
-    async (projectId: string, payload: { isim: string; bitisTarihi: string; sorumlular: string[] }) => {
+    async (projectId: string, payload: { isim: string; bitisTarihi: string; userIds: number[] }) => {
       try {
         let stage = await createStage(projectId, {
           name: payload.isim,
           dueDate: payload.bitisTarihi,
           note: '',
         });
-        const userIds = [
-          ...new Set(
-            payload.sorumlular
-              .map((n) => resolveBackendUserIdFromDisplayName(n))
-              .filter((x): x is number => x != null)
-          ),
-        ];
-        if (userIds.length) {
-          const assigns = await assignUsersToStage(stage.id, userIds);
+        const uniqIds = [...new Set(payload.userIds)].filter((x) => Number.isFinite(x));
+        if (uniqIds.length) {
+          const assigns = await assignUsersToStage(stage.id, uniqIds);
           stage = overlayStageFromAssignments(stage, assigns);
         }
         updateProjectById(projectId, (p) => ({
@@ -435,15 +562,29 @@ export default function App() {
     [role, loadProjectsFromBackend]
   );
 
-  const handleAddNote = useCallback(() => {
+  const handleAddNote = useCallback(async () => {
     if (!detailProjectId || !noteDraft.trim()) return;
-    const yazar = role === 'yonetici' ? NAME_ADMIN : session?.userLabel?.trim() || NAME_DILEK;
-    updateProjectById(detailProjectId, (p) => ({
-      ...p,
-      notes: [...(p.notes ?? []), { id: createId('n'), yazar, metin: noteDraft.trim(), zaman: Date.now() }],
-    }));
-    setNoteDraft('');
-  }, [detailProjectId, noteDraft, role, session?.userLabel, updateProjectById]);
+    if (session?.backendUserId == null) {
+      window.alert('Bu işlem için backend kullanıcı ID gerekli. Önce kullanıcıyı /users üzerinden oluşturun.');
+      return;
+    }
+    try {
+      await addProjectNote(detailProjectId, { userId: session.backendUserId, message: noteDraft.trim() });
+      const notes = await fetchProjectNotes(detailProjectId);
+      updateProjectById(detailProjectId, (p) => ({
+        ...p,
+        notes: notes.map((n) => ({
+          id: String(n.id),
+          yazar: n.authorName,
+          metin: n.message,
+          zaman: Number.isFinite(Date.parse(n.createdAt)) ? Date.parse(n.createdAt) : Date.now(),
+        })),
+      }));
+      setNoteDraft('');
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : 'Not eklenemedi');
+    }
+  }, [detailProjectId, noteDraft, session?.backendUserId, updateProjectById]);
 
   const handleAddProject = useCallback(
     async (payload: { isim: string; firmaAdi: string; nitelik: string; baslangicTarihi: string; bitisTarihi: string }) => {
@@ -461,25 +602,53 @@ export default function App() {
     [loadProjectsFromBackend]
   );
 
-  const saveDuyuru = useCallback(() => {
+  const saveDuyuru = useCallback(async () => {
     const trimmed = duyuruDraft.trim();
-    setDuyuru((prev) => {
-      const nextText = trimmed || prev.text;
-      const textChanged = nextText !== prev.text;
-      return { text: nextText, revision: textChanged ? prev.revision + 1 : prev.revision };
-    });
-  }, [duyuruDraft]);
+    if (!trimmed) return;
+    if (role !== 'yonetici') return;
+    if (session?.backendUserId == null) {
+      window.alert('Bu işlem için backend kullanıcı ID gerekli.');
+      return;
+    }
+    try {
+      await updateCurrentAnnouncement({ userId: session.backendUserId, message: trimmed });
+      await loadAnnouncementFromBackend();
+      setDataRefreshKey((k) => k + 1);
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : 'Duyuru güncellenemedi');
+    }
+  }, [duyuruDraft, loadAnnouncementFromBackend, role, session?.backendUserId]);
 
-  const handleDuyuruAck = useCallback(() => {
-    setDuyuruAck({ revision: duyuru.revision, at: Date.now() });
-  }, [duyuru.revision]);
+  const handleDuyuruAck = useCallback(async () => {
+    if (announcementId == null) return;
+    if (session?.backendUserId == null) {
+      window.alert('Bu işlem için backend kullanıcı ID gerekli.');
+      return;
+    }
+    try {
+      await acknowledgeAnnouncement(announcementId, { userId: session.backendUserId });
+      const ok = await fetchAckStatus(announcementId, session.backendUserId);
+      setDuyuruAck(ok ? { revision: duyuru.revision, at: Date.now() } : null);
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : 'Okundu bilgisi gönderilemedi');
+    }
+  }, [announcementId, duyuru.revision, session?.backendUserId]);
 
-  const handleGenelNotSend = useCallback(() => {
+  const handleGenelNotSend = useCallback(async () => {
     if ((role !== 'personel' && role !== 'yonetici') || !genelNotDraft.trim()) return;
-    const yazar = role === 'yonetici' ? NAME_ADMIN : session?.userLabel?.trim() || NAME_DILEK;
-    setGenelNotlar((prev) => [{ id: createId('gn'), yazar, metin: genelNotDraft.trim(), zaman: Date.now() }, ...prev]);
-    setGenelNotDraft('');
-  }, [role, genelNotDraft, session?.userLabel]);
+    if (session?.backendUserId == null) {
+      window.alert('Bu işlem için backend kullanıcı ID gerekli.');
+      return;
+    }
+    try {
+      await addGeneralNote({ userId: session.backendUserId, message: genelNotDraft.trim() });
+      await loadGeneralNotesFromBackend();
+      setGenelNotDraft('');
+      setDataRefreshKey((k) => k + 1);
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : 'Genel not eklenemedi');
+    }
+  }, [genelNotDraft, loadGeneralNotesFromBackend, role, session?.backendUserId]);
 
   const listProjects = role === 'yonetici' ? (yoneticiListe === 'arsiv' ? archiveProjects : dashboardProjects) : dashboardProjects;
 
@@ -545,7 +714,7 @@ export default function App() {
 
         <main className="mx-auto max-w-7xl space-y-3 px-4 py-3 sm:px-6 lg:px-8">
           {currentPage === 'staffManagement' && session.role === 'yonetici' ? (
-            <StaffManagementPage users={managedUsers} onUsersChange={setManagedUsers} />
+            <StaffManagementPage users={backendUsers} onReload={reloadUsersFromBackendStrict} />
           ) : currentPage === 'dashboard' ? (
             <>
               <OfficeAnnouncement
@@ -645,7 +814,7 @@ export default function App() {
               />
             </>
           ) : (
-            <MyTasksPage tasks={myTaskRows} onOpenProject={openDetail} />
+            <MyTasksPage tasks={myTasksRows} onOpenProject={openDetail} />
           )}
         </main>
       </div>
@@ -654,7 +823,7 @@ export default function App() {
         open={Boolean(detailProjectId && detailProject)}
         project={detailProject}
         role={role}
-        assignableNames={assignableDisplayNames}
+        assignableUsers={assignableUsers}
         staffUserLabel={session.userLabel}
         onClose={closeDetail}
         onSorumlularChange={handleSorumlularChange}

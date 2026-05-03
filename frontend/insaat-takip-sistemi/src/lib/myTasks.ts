@@ -6,6 +6,7 @@ export type MyTaskRow = {
   projectName: string;
   firmaAdi: string;
   stage: Stage;
+  completed: boolean;
 };
 
 /** Aktif projelerde, kullanıcı adına atanmış aşamalar (liste için). */
@@ -18,7 +19,13 @@ export function buildMyTaskRows(projects: readonly Project[], userLabel: string)
     if (p.archived) continue;
     for (const stage of p.stages ?? []) {
       if (isStageAssignedToUser(stage, needle)) {
-        rows.push({ projectId: p.id, projectName: p.isim, firmaAdi: p.firmaAdi, stage });
+        rows.push({
+          projectId: p.id,
+          projectName: p.isim,
+          firmaAdi: p.firmaAdi,
+          stage,
+          completed: false,
+        });
       }
     }
   }

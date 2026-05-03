@@ -11,6 +11,8 @@ import {
 import type { Stage } from '../types';
 import AssigneeStatusList from './AssigneeStatusList';
 
+export type AssignableUser = { id: number; displayName: string };
+
 export default function StageCard({
   stage,
   isYonetici,
@@ -25,18 +27,18 @@ export default function StageCard({
   onOnayla,
   onDelete,
   staffUserLabel,
-  assignableNames,
+  assignableUsers,
 }: {
   stage: Stage;
   isYonetici: boolean;
   isPersonel: boolean;
-  /** Aşama ataması için seçilebilir görünen adlar (yönetici). */
-  assignableNames: readonly string[];
+  /** Aşama ataması için seçilebilir kullanıcılar (yönetici). */
+  assignableUsers: readonly AssignableUser[];
   /** Personel oturum adı; atanmış aşamada işlem butonları için. */
   staffUserLabel?: string;
   notePanelOpen: boolean;
   stageNoteDraft: string;
-  onSorumlularChange: (stageId: string, sorumlular: string[]) => void;
+  onSorumlularChange: (stageId: string, userIds: number[]) => void;
   onToggleNote: (stageId: string) => void;
   onStageNoteDraftChange: (v: string) => void;
   onSaveStageNote: (stageId: string) => void;
@@ -87,10 +89,24 @@ export default function StageCard({
   const showOnay = adminCanApproveStage(stage, { isAdmin: isYonetici, isAdminAssigned: managerAssigned });
   const showSil = isYonetici;
 
-  function setSorumluCheckbox(ad: string, checked: boolean) {
-    const set = new Set(sorumlar);
-    if (checked) set.add(ad);
-    else set.delete(ad);
+  const selectedUserIds: number[] = Array.isArray(stage.sorumluUserIds)
+    ? stage.sorumluUserIds
+    : sorumlar
+        .map((name) => {
+          const hit = assignableUsers.find(
+            (u) => (normalizePersonName(u.displayName) ?? u.displayName) === (normalizePersonName(name) ?? name)
+          );
+          return hit?.id ?? null;
+        })
+        .filter((x): x is number => x != null);
+
+  function setSorumluCheckbox(userId: number, checked: boolean) {
+    const set = new Set(selectedUserIds);
+    if (checked) set.add(userId);
+    else {
+      if (set.size <= 1) return;
+      set.delete(userId);
+    }
     const next = [...set];
     if (next.length) onSorumlularChange(stage.id, next);
   }
@@ -127,18 +143,18 @@ export default function StageCard({
             <div className="mt-2">
               <div className="text-[11px] font-medium text-slate-500">Atama (düzenle)</div>
               <div className="mt-1.5 flex flex-wrap gap-2">
-                {assignableNames.map((ad) => (
+                {assignableUsers.map((u) => (
                   <label
-                    key={ad}
+                    key={u.id}
                     className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-white/10 bg-black/20 px-2 py-1 text-xs font-medium text-white"
                   >
                     <input
                       type="checkbox"
                       className="rounded border-white/30 bg-navy-900"
-                      checked={sorumlar.includes(ad)}
-                      onChange={(e) => setSorumluCheckbox(ad, e.target.checked)}
+                      checked={selectedUserIds.includes(u.id)}
+                      onChange={(e) => setSorumluCheckbox(u.id, e.target.checked)}
                     />
-                    {ad}
+                    {u.displayName}
                   </label>
                 ))}
               </div>

@@ -7,12 +7,13 @@ import NewStageModal from './NewStageModal';
 import { daysUntil } from '../lib/date';
 import { isKritikProje } from '../lib/mukavimRules';
 import type { AppRole, Project } from '../types';
+import type { AssignableUser } from './StageCard';
 
 export default function ProjectDetailModal({
   open,
   project,
   role,
-  assignableNames,
+  assignableUsers,
   onClose,
   onSorumlularChange,
   onStageBitti,
@@ -28,15 +29,15 @@ export default function ProjectDetailModal({
   open: boolean;
   project: Project | null;
   role: AppRole;
-  assignableNames: readonly string[];
+  assignableUsers: readonly AssignableUser[];
   staffUserLabel?: string;
   onClose: () => void;
-  onSorumlularChange: (stageId: string, sorumlular: string[]) => void;
+  onSorumlularChange: (stageId: string, userIds: number[]) => void;
   onStageBitti: (stageId: string) => void;
   onStageOnayla: (stageId: string) => void;
   onDeleteStage: (stageId: string) => void;
   onSaveStageNote: (projectId: string, stageId: string, note: string) => void;
-  onAddStage: (projectId: string, payload: { isim: string; bitisTarihi: string; sorumlular: string[] }) => void;
+  onAddStage: (projectId: string, payload: { isim: string; bitisTarihi: string; userIds: number[] }) => void;
   onAddNote: () => void;
   noteDraft: string;
   onNoteDraftChange: (v: string) => void;
@@ -146,11 +147,11 @@ export default function ProjectDetailModal({
                           stage={stage}
                           isYonetici={isYonetici}
                           isPersonel={isPersonel}
-                          assignableNames={assignableNames}
+                          assignableUsers={assignableUsers}
                           staffUserLabel={staffUserLabel}
                           notePanelOpen={openNoteStageId === stage.id}
                           stageNoteDraft={openNoteStageId === stage.id ? stageNoteDraft : ''}
-                          onSorumlularChange={(stageId, list) => onSorumlularChange(stageId, list)}
+                          onSorumlularChange={(stageId, userIds) => onSorumlularChange(stageId, userIds)}
                           onToggleNote={handleToggleNote}
                           onStageNoteDraftChange={setStageNoteDraft}
                           onSaveStageNote={handleSaveNoteClick}
@@ -181,10 +182,10 @@ export default function ProjectDetailModal({
 
       <NewStageModal
         open={newStageOpen}
-        assignableNames={assignableNames}
+        assignableUsers={assignableUsers}
         onClose={() => setNewStageOpen(false)}
         onSubmit={(payload) => {
-          onAddStage(proj.id, { isim: payload.name, bitisTarihi: payload.dueDate, sorumlular: payload.assignees });
+          onAddStage(proj.id, { isim: payload.name, bitisTarihi: payload.dueDate, userIds: payload.userIds });
           setNewStageOpen(false);
         }}
       />

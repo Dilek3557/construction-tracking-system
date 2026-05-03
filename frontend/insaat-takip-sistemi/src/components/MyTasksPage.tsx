@@ -37,6 +37,7 @@ export default function MyTasksPage({
               <th className="px-4 py-3 text-left font-semibold">Aşama</th>
               <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Bitiş</th>
               <th className="px-4 py-3 text-left font-semibold">Durum</th>
+              <th className="px-4 py-3 text-left font-semibold">Tamamlandı</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/10 bg-navy-950/15">
@@ -62,6 +63,17 @@ export default function MyTasksPage({
                   <td className="px-4 py-3 whitespace-nowrap text-slate-300">{row.stage.bitisTarihi}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${meta.pill}`}>{meta.label}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
+                        row.completed
+                          ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-100'
+                          : 'border-amber-500/30 bg-amber-500/15 text-amber-100'
+                      }`}
+                    >
+                      {row.completed ? 'Evet' : 'Hayır'}
+                    </span>
                   </td>
                 </tr>
               );

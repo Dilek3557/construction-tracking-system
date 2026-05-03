@@ -1,22 +1,62 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { AppRole } from '../types';
-import { resolveBackendUserIdFromLoginUsername } from '../constants';
+import { fetchUsers, type UserResponse } from '../api/usersApi';
 
 export default function LoginScreen({
   onLogin,
 }: {
   onLogin: (payload: { userLabel: string; role: AppRole; backendUserId?: number | null }) => void;
 }) {
-  const [userLabel, setUserLabel] = useState('mustafa');
-  const [role, setRole] = useState<AppRole>('yonetici');
+  const [users, setUsers] = useState<UserResponse[]>([]);
+  const [loadState, setLoadState] = useState<'loading' | 'ok' | 'error'>('loading');
+  const [loadError, setLoadError] = useState<string>('');
+
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [password, setPassword] = useState('');
+
+  const activeUsers = useMemo(() => users.filter((u) => u.active), [users]);
+  const selectedUser = useMemo(() => activeUsers.find((u) => u.id === selectedUserId) ?? null, [activeUsers, selectedUserId]);
+
+  function mapBackendRoleToAppRole(r: string): AppRole {
+    const key = r.trim().toUpperCase();
+    // tolerate different backend role naming
+    if (key === 'MANAGER' || key === 'ADMIN' || key === 'YONETICI') return 'yonetici';
+    return 'personel';
+  }
+
+  const derivedRole: AppRole = selectedUser ? mapBackendRoleToAppRole(selectedUser.role) : 'personel';
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoadState('loading');
+      setLoadError('');
+      try {
+        const list = await fetchUsers();
+        if (cancelled) return;
+        setUsers(list);
+        const active = list.filter((u) => u.active).sort((a, b) => a.displayName.localeCompare(b.displayName, 'tr'));
+        const first = active[0];
+        setSelectedUserId(first?.id ?? null);
+        setLoadState('ok');
+      } catch (e) {
+        if (cancelled) return;
+        setUsers([]);
+        setSelectedUserId(null);
+        setLoadState('error');
+        setLoadError(e instanceof Error ? e.message : 'Kullanıcılar yüklenemedi');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const trimmed = userLabel.trim();
-    if (!trimmed) return;
-    const backendUserId = resolveBackendUserIdFromLoginUsername(trimmed);
-    onLogin({ userLabel: trimmed, role, backendUserId });
+    if (!selectedUser) return;
+    // userLabel is used across UI (assignment matching), so prefer displayName.
+    onLogin({ userLabel: selectedUser.displayName, role: derivedRole, backendUserId: selectedUser.id });
   }
 
   return (
@@ -45,44 +85,42 @@ export default function LoginScreen({
           className="rounded-2xl border border-white/10 bg-navy-950/80 p-8 shadow-[0_24px_80px_-24px_rgba(0,0,0,0.6)] ring-1 ring-white/5 backdrop-blur-xl"
         >
           <label className="block">
-            <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Kullanıcı adı veya e-posta</span>
-            <input
-              type="text"
-              autoComplete="username"
-              value={userLabel}
-              onChange={(e) => setUserLabel(e.target.value)}
-              placeholder="ör. Dilek veya ad.soyad@firma.com"
-              className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-sky-500/40 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-            />
+            <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Kullanıcı</span>
+            {loadState === 'error' ? (
+              <div className="mt-2 rounded-xl border border-red-400/25 bg-red-500/10 px-3 py-2 text-sm text-red-100">
+                {loadError || 'Kullanıcılar yüklenemedi'}
+                <div className="mt-1 text-xs text-red-100/70">Backend açık mı? `GET /users` çalışıyor mu?</div>
+              </div>
+            ) : (
+              <select
+                value={selectedUserId ?? ''}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  const hit = activeUsers.find((u) => u.id === v) ?? null;
+                  setSelectedUserId(hit?.id ?? null);
+                }}
+                disabled={loadState !== 'ok' || activeUsers.length === 0}
+                className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white focus:border-sky-500/40 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+              >
+                {loadState !== 'ok' ? <option value="">Yükleniyor…</option> : null}
+                {loadState === 'ok' && activeUsers.length === 0 ? <option value="">Aktif kullanıcı yok</option> : null}
+                {loadState === 'ok'
+                  ? [...activeUsers]
+                      .sort((a, b) => a.displayName.localeCompare(b.displayName, 'tr'))
+                      .map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.displayName} ({u.username})
+                        </option>
+                      ))
+                  : null}
+              </select>
+            )}
           </label>
 
           <div className="mt-6">
             <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Rol</span>
-            <div className="mt-2 flex rounded-2xl border border-white/10 bg-black/20 p-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setRole('yonetici');
-                  setUserLabel('mustafa');
-                }}
-                className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
-                  role === 'yonetici' ? 'bg-white/15 text-white shadow-md' : 'text-slate-400 hover:bg-white/5'
-                }`}
-              >
-                Yönetici
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setRole('personel');
-                  setUserLabel('dilek');
-                }}
-                className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
-                  role === 'personel' ? 'bg-white/15 text-white shadow-md' : 'text-slate-400 hover:bg-white/5'
-                }`}
-              >
-                Personel
-              </button>
+            <div className="mt-2 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm font-semibold text-white">
+              {derivedRole === 'yonetici' ? 'Yönetici' : 'Personel'}
             </div>
           </div>
 
@@ -100,13 +138,14 @@ export default function LoginScreen({
 
           <button
             type="submit"
+            disabled={!selectedUser || loadState !== 'ok'}
             className="mt-8 w-full rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-900/30 ring-1 ring-white/10 transition hover:from-sky-500 hover:to-indigo-500"
           >
             Giriş Yap
           </button>
 
           <p className="mt-6 text-center text-[11px] leading-relaxed text-slate-500">
-            Demo ortamıdır; şifre doğrulaması yapılmaz. Görevlerinizde isim eşleşmesi için sahadaki isimle aynı giriş kullanın.
+            Demo ortamıdır; şifre doğrulaması yapılmaz. Kullanıcı listesi backend `GET /users` üzerinden gelir.
           </p>
         </form>
       </div>

@@ -3,6 +3,7 @@ import { readApiErrorMessage } from './apiErrors';
 import type { Stage, StageDurum } from '../types';
 
 export type StageAssignmentApiRow = {
+  userId?: number;
   userDisplayName?: string;
   completed?: boolean;
 };
@@ -25,6 +26,7 @@ function parseStageRow(raw: unknown): {
   dueDate: string;
   status: string;
   note: string;
+  assignedUsers: StageAssignmentApiRow[];
 } | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const o = raw as Record<string, unknown>;
@@ -34,12 +36,24 @@ function parseStageRow(raw: unknown): {
   let dueStr = '';
   if (typeof due === 'string') dueStr = due;
   else if (due && typeof due === 'object' && 'toString' in due) dueStr = String(due);
+  const assignedRaw = Array.isArray(o.assignedUsers) ? o.assignedUsers : [];
+  const assignedUsers: StageAssignmentApiRow[] = assignedRaw
+    .filter((v) => typeof v === 'object' && v !== null)
+    .map((v) => {
+      const a = v as Record<string, unknown>;
+      return {
+        userId: typeof a.userId === 'number' && Number.isFinite(a.userId) ? a.userId : undefined,
+        userDisplayName: typeof a.userDisplayName === 'string' ? a.userDisplayName : undefined,
+        completed: typeof a.completed === 'boolean' ? a.completed : undefined,
+      };
+    });
   return {
     id: String(id),
     name: typeof o.name === 'string' ? o.name : '',
     dueDate: dueStr,
     status: typeof o.status === 'string' ? o.status : 'PENDING',
     note: typeof o.note === 'string' ? o.note : '',
+    assignedUsers,
   };
 }
 
@@ -47,12 +61,28 @@ function parseStageRow(raw: unknown): {
 export function stageFromApiRow(raw: unknown): Stage | null {
   const p = parseStageRow(raw);
   if (!p) return null;
+  const sorumlular = p.assignedUsers
+    .map((a) => (typeof a.userDisplayName === 'string' ? a.userDisplayName.trim() : ''))
+    .filter(Boolean);
+  const completedBy = p.assignedUsers
+    .filter((a) => a.completed)
+    .map((a) => a.userDisplayName?.trim() ?? '')
+    .filter(Boolean);
+  const sorumluUserIds = p.assignedUsers
+    .map((a) => (typeof a.userId === 'number' && Number.isFinite(a.userId) ? a.userId : null))
+    .filter((x): x is number => x != null);
+  const completedUserIds = p.assignedUsers
+    .filter((a) => a.completed)
+    .map((a) => (typeof a.userId === 'number' && Number.isFinite(a.userId) ? a.userId : null))
+    .filter((x): x is number => x != null);
   return {
     id: p.id,
     isim: p.name,
     bitisTarihi: p.dueDate,
-    sorumlular: [],
-    completedBy: [],
+    sorumlular: [...new Set(sorumlular)],
+    completedBy: [...new Set(completedBy)],
+    sorumluUserIds: [...new Set(sorumluUserIds)],
+    completedUserIds: [...new Set(completedUserIds)],
     durum: mapBackendStageStatus(p.status),
     not: p.note,
   };
@@ -68,6 +98,8 @@ export function mergeStagesWithPrevious(fetched: Stage[], previous: readonly Sta
         ...s,
         sorumlular: [...p.sorumlular],
         completedBy: [...(p.completedBy ?? [])],
+        sorumluUserIds: Array.isArray(p.sorumluUserIds) ? [...p.sorumluUserIds] : p.sorumluUserIds,
+        completedUserIds: Array.isArray(p.completedUserIds) ? [...p.completedUserIds] : p.completedUserIds,
         not: s.not || p.not,
       };
     }
@@ -81,7 +113,21 @@ export function overlayStageFromAssignments(stage: Stage, assignments: readonly 
     .filter(Boolean);
   const sorumlular = [...new Set(names)];
   const completedBy = assignments.filter((a) => a.completed).map((a) => a.userDisplayName?.trim() ?? '').filter(Boolean);
-  return { ...stage, sorumlular, completedBy };
+  const userIds = assignments
+    .map((a) => (typeof a.userId === 'number' && Number.isFinite(a.userId) ? a.userId : null))
+    .filter((x): x is number => x != null);
+  const completedUserIds = assignments
+    .filter((a) => a.completed)
+    .map((a) => (typeof a.userId === 'number' && Number.isFinite(a.userId) ? a.userId : null))
+    .filter((x): x is number => x != null);
+
+  return {
+    ...stage,
+    sorumlular,
+    completedBy,
+    sorumluUserIds: [...new Set(userIds)],
+    completedUserIds: [...new Set(completedUserIds)],
+  };
 }
 
 export async function fetchStagesByProjectId(projectId: string): Promise<Stage[]> {

@@ -1,44 +1,48 @@
 import { useEffect, useMemo, useState } from 'react';
 
+export type AssignableUser = { id: number; displayName: string };
+
 export default function NewStageModal({
   open,
   onClose,
   onSubmit,
-  assignableNames,
+  assignableUsers,
 }: {
   open: boolean;
   onClose: () => void;
-  onSubmit: (payload: { name: string; dueDate: string; assignees: string[] }) => void;
-  assignableNames: readonly string[];
+  onSubmit: (payload: { name: string; dueDate: string; userIds: number[] }) => void;
+  assignableUsers: readonly AssignableUser[];
 }) {
-  const defaultAssignee = assignableNames[0] ?? '';
-  const [assignees, setAssignees] = useState<Set<string>>(() => new Set(defaultAssignee ? [defaultAssignee] : []));
+  const defaultAssigneeId = assignableUsers[0]?.id;
+  const [assignees, setAssignees] = useState<Set<number>>(() =>
+    defaultAssigneeId != null ? new Set([defaultAssigneeId]) : new Set()
+  );
   const [query, setQuery] = useState('');
 
   useEffect(() => {
     if (!open) return;
     setQuery('');
-    const first = assignableNames[0];
-    setAssignees(new Set(first ? [first] : []));
-  }, [open, assignableNames]);
+    const firstId = assignableUsers[0]?.id;
+    setAssignees(firstId != null ? new Set([firstId]) : new Set());
+  }, [open, assignableUsers]);
 
   const filteredStaff = useMemo(() => {
     const q = query.trim().toLocaleLowerCase('tr-TR');
-    const pool = [...assignableNames];
+    const pool = [...assignableUsers];
     if (!q) return pool;
-    return pool.filter((name) => name.toLocaleLowerCase('tr-TR').includes(q));
-  }, [query, assignableNames]);
+    return pool.filter((u) => u.displayName.toLocaleLowerCase('tr-TR').includes(q));
+  }, [query, assignableUsers]);
 
   if (!open) return null;
 
-  function toggle(name: string) {
+  function toggle(id: number) {
     setAssignees((prev) => {
       const next = new Set(prev);
-      if (next.has(name)) {
+      if (next.has(id)) {
         if (next.size <= 1) return next;
-        next.delete(name);
+        next.delete(id);
       } else {
-        next.add(name);
+        next.add(id);
       }
       return next;
     });
@@ -52,10 +56,10 @@ export default function NewStageModal({
     const dueDate = String(fd.get('dueDate') ?? '').trim();
     const list = [...assignees];
     if (!name || !dueDate || !list.length) return;
-    onSubmit({ name, dueDate, assignees: list });
+    onSubmit({ name, dueDate, userIds: list });
     form.reset();
-    const first = assignableNames[0];
-    setAssignees(new Set(first ? [first] : []));
+    const firstId = assignableUsers[0]?.id;
+    setAssignees(firstId != null ? new Set([firstId]) : new Set());
     setQuery('');
     onClose();
   }
@@ -86,10 +90,10 @@ export default function NewStageModal({
           </div>
           <div>
             <div className="text-xs text-slate-400">Sorumlular</div>
-            <p className="mt-0.5 text-[11px] text-slate-500">Birden fazla seçebilirsiniz. Liste Personel Yönetimi kayıtlarından gelir.</p>
-            {assignableNames.length === 0 ? (
+            <p className="mt-0.5 text-[11px] text-slate-500">Birden fazla seçebilirsiniz. Liste backend kullanıcılarından gelir.</p>
+            {assignableUsers.length === 0 ? (
               <p className="mt-2 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-                Atanabilir aktif kullanıcı yok. Önce Personel Yönetimi üzerinden kullanıcı ekleyin.
+                Atanabilir aktif kullanıcı yok. Önce backend'e kullanıcı ekleyin.
               </p>
             ) : (
               <>
@@ -106,18 +110,18 @@ export default function NewStageModal({
                     {filteredStaff.length === 0 ? (
                       <p className="py-3 text-center text-xs text-slate-500">Eşleşen personel yok.</p>
                     ) : (
-                      filteredStaff.map((name) => (
+                      filteredStaff.map((u) => (
                         <label
-                          key={name}
+                          key={u.id}
                           className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-200 hover:bg-white/5"
                         >
                           <input
                             type="checkbox"
                             className="rounded border-white/20 bg-navy-900 text-sky-500 focus:ring-sky-400/40"
-                            checked={assignees.has(name)}
-                            onChange={() => toggle(name)}
+                            checked={assignees.has(u.id)}
+                            onChange={() => toggle(u.id)}
                           />
-                          {name}
+                          {u.displayName}
                         </label>
                       ))
                     )}
@@ -132,7 +136,7 @@ export default function NewStageModal({
             </button>
             <button
               type="submit"
-              disabled={assignableNames.length === 0}
+              disabled={assignableUsers.length === 0}
               className="rounded-xl bg-emerald-500/30 px-4 py-2 text-sm font-semibold text-emerald-50 ring-1 ring-emerald-400/30 hover:bg-emerald-500/40 disabled:pointer-events-none disabled:opacity-40"
             >
               Ekle
