@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Getter
 @Builder
@@ -15,4 +16,5 @@ public class StageResponse {
     private LocalDate dueDate;
     private String status;
     private String note;
+    private List<StageAssignmentResponse> assignedUsers;
 }

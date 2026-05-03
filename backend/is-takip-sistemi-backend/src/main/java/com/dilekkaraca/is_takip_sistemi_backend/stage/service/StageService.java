@@ -3,6 +3,7 @@
 package com.dilekkaraca.is_takip_sistemi_backend.stage.service;
 
 import com.dilekkaraca.is_takip_sistemi_backend.exception.ProjectNotFoundException;
+import com.dilekkaraca.is_takip_sistemi_backend.exception.StageAssignmentNotFoundException;
 import com.dilekkaraca.is_takip_sistemi_backend.exception.StageNotFoundException;
 import com.dilekkaraca.is_takip_sistemi_backend.exception.UserNotFoundException;
 import com.dilekkaraca.is_takip_sistemi_backend.project.entity.Project;
@@ -97,8 +98,7 @@ public class StageService {
     }
     public StageAssignmentResponse completeMyAssignment(Long stageId, Long userId, String completionNote) {
         StageAssignment assignment = stageAssignmentRepository.findByStageIdAndUserId(stageId, userId)
-                .orElseThrow(() -> new RuntimeException("Bu kullanıcı bu stage'e atanmış değil."));
-
+                .orElseThrow(() -> new StageAssignmentNotFoundException(stageId, userId));
         if (assignment.isCompleted()) {
             throw new IllegalStateException("Bu görev zaten tamamlanmış.");
         }
@@ -133,6 +133,13 @@ public class StageService {
         return mapToResponse(saved);
     }
     private StageResponse mapToResponse(Stage stage) {
+
+        List<StageAssignmentResponse> assignedUsers =
+                stageAssignmentRepository.findByStageId(stage.getId())
+                        .stream()
+                        .map(this::mapAssignmentToResponse)
+                        .toList();
+
         return StageResponse.builder()
                 .id(stage.getId())
                 .projectId(stage.getProject().getId())
@@ -140,6 +147,7 @@ public class StageService {
                 .dueDate(stage.getDueDate())
                 .status(stage.getStatus().name())
                 .note(stage.getNote())
+                .assignedUsers(assignedUsers)
                 .build();
     }
     private StageAssignmentResponse mapAssignmentToResponse(StageAssignment assignment) {
