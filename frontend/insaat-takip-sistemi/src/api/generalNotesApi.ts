@@ -1,4 +1,4 @@
-import { buildApiUrl } from './apiBase';
+import { apiFetch } from './apiClient';
 import { readApiErrorMessage } from './apiErrors';
 
 export type GeneralNoteResponse = {
@@ -22,8 +22,7 @@ function isNote(v: unknown): v is GeneralNoteResponse {
 }
 
 export async function fetchGeneralNotes(): Promise<GeneralNoteResponse[]> {
-  const url = buildApiUrl('/general-notes');
-  const res = await fetch(url);
+  const res = await apiFetch('/general-notes');
   if (!res.ok) throw new Error(await readApiErrorMessage(res));
   const data: unknown = await res.json();
   if (!Array.isArray(data)) return [];
@@ -31,8 +30,7 @@ export async function fetchGeneralNotes(): Promise<GeneralNoteResponse[]> {
 }
 
 export async function addGeneralNote(body: { userId: number; message: string }): Promise<void> {
-  const url = buildApiUrl('/general-notes');
-  const res = await fetch(url, {
+  const res = await apiFetch('/general-notes', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId: body.userId, message: body.message }),

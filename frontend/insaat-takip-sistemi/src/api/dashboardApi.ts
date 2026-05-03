@@ -1,4 +1,4 @@
-import { buildApiUrl } from './apiBase';
+import { apiFetch } from './apiClient';
 import { readApiErrorMessage } from './apiErrors';
 import type { Project } from '../types';
 import { mapProjectFromApi } from './projectsApi';
@@ -15,9 +15,7 @@ function isRow(v: unknown): v is ProjectTypeDistributionRow {
 }
 
 export async function fetchProjectTypeDistribution(): Promise<ProjectTypeDistributionRow[]> {
-  const url = buildApiUrl('/dashboard/project-type-distribution');
-
-  const res = await fetch(url);
+  const res = await apiFetch('/dashboard/project-type-distribution');
   if (!res.ok) {
     throw new Error(await readApiErrorMessage(res));
   }
@@ -32,8 +30,7 @@ export async function fetchProjectTypeDistribution(): Promise<ProjectTypeDistrib
 }
 
 export async function fetchCriticalProjects(): Promise<Project[]> {
-  const url = buildApiUrl('/dashboard/critical-projects');
-  const res = await fetch(url);
+  const res = await apiFetch('/dashboard/critical-projects');
   if (!res.ok) {
     throw new Error(await readApiErrorMessage(res));
   }
@@ -48,8 +45,7 @@ export async function fetchCriticalProjects(): Promise<Project[]> {
 }
 
 export async function fetchWaitingApprovalStageCount(): Promise<number> {
-  const url = buildApiUrl('/dashboard/waiting-approval-stage-count');
-  const res = await fetch(url);
+  const res = await apiFetch('/dashboard/waiting-approval-stage-count');
   if (!res.ok) {
     throw new Error(await readApiErrorMessage(res));
   }
@@ -58,8 +54,7 @@ export async function fetchWaitingApprovalStageCount(): Promise<number> {
 }
 
 export async function fetchDeliveredProjectCount(): Promise<number> {
-  const url = buildApiUrl('/dashboard/delivered-project-count');
-  const res = await fetch(url);
+  const res = await apiFetch('/dashboard/delivered-project-count');
   if (!res.ok) {
     throw new Error(await readApiErrorMessage(res));
   }

@@ -1,23 +1,20 @@
 import type { AppCurrentPage, AppRole } from '../types';
 
 export default function Sidebar({
-  role,
   sessionRole,
-  onRoleChange,
   currentPage,
   onPageChange,
   userLabel,
   onLogout,
 }: {
-  role: AppRole;
-  /** Oturumdaki gerçek rol (Personel Yönetimi menüsü yalnız buna göre). */
   sessionRole: AppRole;
-  onRoleChange: (r: AppRole) => void;
   currentPage: AppCurrentPage;
   onPageChange: (p: AppCurrentPage) => void;
   userLabel: string;
   onLogout: () => void;
 }) {
+  const roleLabel = sessionRole === 'yonetici' ? 'Yönetici' : 'Personel';
+
   return (
     <aside className="flex w-full shrink-0 flex-col border-r border-white/10 bg-navy-950/50 backdrop-blur-xl lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:w-64">
       <div className="flex items-center gap-3 border-b border-white/10 px-4 py-5">
@@ -80,26 +77,9 @@ export default function Sidebar({
       <div className="flex-1" />
 
       <div className="border-t border-white/10 p-3">
-        <div className="text-xs font-medium uppercase tracking-wider text-slate-500">Görünüm</div>
-        <div className="mt-2 flex rounded-2xl border border-white/10 bg-white/5 p-1">
-          <button
-            type="button"
-            onClick={() => onRoleChange('yonetici')}
-            className={`flex-1 rounded-xl px-2 py-2 text-xs font-semibold transition ${
-              role === 'yonetici' ? 'bg-white/15 text-white shadow-soft' : 'text-slate-400 hover:bg-white/10'
-            }`}
-          >
-            Yönetici
-          </button>
-          <button
-            type="button"
-            onClick={() => onRoleChange('personel')}
-            className={`flex-1 rounded-xl px-2 py-2 text-xs font-semibold transition ${
-              role === 'personel' ? 'bg-white/15 text-white shadow-soft' : 'text-slate-400 hover:bg-white/10'
-            }`}
-          >
-            Dilek
-          </button>
+        <div className="text-xs font-medium uppercase tracking-wider text-slate-500">Rol</div>
+        <div className="mt-2 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm font-semibold text-white">
+          {roleLabel}
         </div>
       </div>
 
@@ -115,4 +95,3 @@ export default function Sidebar({
     </aside>
   );
 }
-

@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
+      '/auth': { target: 'http://localhost:8080', changeOrigin: true },
       '/dashboard': { target: 'http://localhost:8080', changeOrigin: true },
       '/projects': { target: 'http://localhost:8080', changeOrigin: true },
       '/stages': { target: 'http://localhost:8080', changeOrigin: true },

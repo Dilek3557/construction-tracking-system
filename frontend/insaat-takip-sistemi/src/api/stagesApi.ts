@@ -1,4 +1,4 @@
-import { buildApiUrl } from './apiBase';
+import { apiFetch } from './apiClient';
 import { readApiErrorMessage } from './apiErrors';
 import type { Stage, StageDurum } from '../types';
 
@@ -131,8 +131,7 @@ export function overlayStageFromAssignments(stage: Stage, assignments: readonly 
 }
 
 export async function fetchStagesByProjectId(projectId: string): Promise<Stage[]> {
-  const url = buildApiUrl(`/stages/project/${encodeURIComponent(projectId)}`);
-  const res = await fetch(url);
+  const res = await apiFetch(`/stages/project/${encodeURIComponent(projectId)}`);
   if (!res.ok) {
     throw new Error(await readApiErrorMessage(res));
   }
@@ -150,8 +149,7 @@ export async function createStage(
   projectId: string,
   body: { name: string; dueDate: string; note: string }
 ): Promise<Stage> {
-  const url = buildApiUrl(`/stages/project/${encodeURIComponent(projectId)}`);
-  const res = await fetch(url, {
+  const res = await apiFetch(`/stages/project/${encodeURIComponent(projectId)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -170,8 +168,7 @@ export async function createStage(
 }
 
 export async function assignUsersToStage(stageId: string, userIds: number[]): Promise<StageAssignmentApiRow[]> {
-  const url = buildApiUrl(`/stages/${encodeURIComponent(stageId)}/assign-users`);
-  const res = await fetch(url, {
+  const res = await apiFetch(`/stages/${encodeURIComponent(stageId)}/assign-users`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userIds }),
@@ -188,8 +185,7 @@ export async function completeStageAssignment(
   stageId: string,
   body: { userId: number; completionNote: string }
 ): Promise<void> {
-  const url = buildApiUrl(`/stages/${encodeURIComponent(stageId)}/complete`);
-  const res = await fetch(url, {
+  const res = await apiFetch(`/stages/${encodeURIComponent(stageId)}/complete`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -203,8 +199,7 @@ export async function completeStageAssignment(
 }
 
 export async function approveStage(stageId: string): Promise<Stage> {
-  const url = buildApiUrl(`/stages/${encodeURIComponent(stageId)}/approve`);
-  const res = await fetch(url, { method: 'PUT' });
+  const res = await apiFetch(`/stages/${encodeURIComponent(stageId)}/approve`, { method: 'PUT' });
   if (!res.ok) {
     throw new Error(await readApiErrorMessage(res));
   }

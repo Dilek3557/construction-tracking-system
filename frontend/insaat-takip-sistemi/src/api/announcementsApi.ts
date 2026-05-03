@@ -1,4 +1,4 @@
-import { buildApiUrl } from './apiBase';
+import { apiFetch } from './apiClient';
 import { readApiErrorMessage } from './apiErrors';
 
 export type OfficeAnnouncementResponse = {
@@ -20,8 +20,7 @@ function isAnnouncement(v: unknown): v is OfficeAnnouncementResponse {
 }
 
 export async function fetchCurrentAnnouncement(): Promise<OfficeAnnouncementResponse | null> {
-  const url = buildApiUrl('/announcements/current');
-  const res = await fetch(url);
+  const res = await apiFetch('/announcements/current');
   if (!res.ok) throw new Error(await readApiErrorMessage(res));
   const data: unknown = await res.json();
   // backend returns Optional -> either object or null
@@ -30,8 +29,7 @@ export async function fetchCurrentAnnouncement(): Promise<OfficeAnnouncementResp
 }
 
 export async function updateCurrentAnnouncement(body: { userId: number; message: string }): Promise<OfficeAnnouncementResponse> {
-  const url = buildApiUrl('/announcements/current');
-  const res = await fetch(url, {
+  const res = await apiFetch('/announcements/current', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId: body.userId, message: body.message }),
@@ -43,8 +41,7 @@ export async function updateCurrentAnnouncement(body: { userId: number; message:
 }
 
 export async function acknowledgeAnnouncement(announcementId: number, body: { userId: number }): Promise<void> {
-  const url = buildApiUrl(`/announcements/${encodeURIComponent(String(announcementId))}/ack`);
-  const res = await fetch(url, {
+  const res = await apiFetch(`/announcements/${encodeURIComponent(String(announcementId))}/ack`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId: body.userId }),
@@ -53,10 +50,9 @@ export async function acknowledgeAnnouncement(announcementId: number, body: { us
 }
 
 export async function fetchAckStatus(announcementId: number, userId: number): Promise<boolean> {
-  const url = buildApiUrl(
+  const res = await apiFetch(
     `/announcements/${encodeURIComponent(String(announcementId))}/ack-status?userId=${encodeURIComponent(String(userId))}`
   );
-  const res = await fetch(url);
   if (!res.ok) throw new Error(await readApiErrorMessage(res));
   const data: unknown = await res.json();
   return data === true;

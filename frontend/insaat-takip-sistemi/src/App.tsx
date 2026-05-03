@@ -42,21 +42,25 @@ import {
   fetchCurrentAnnouncement,
   updateCurrentAnnouncement,
 } from './api/announcementsApi';
+import { AUTH_LOST_EVENT } from './api/apiClient';
+import { clearAuth, readSessionPayload } from './api/authStorage';
 import * as apiService from './api/apiService';
 import type {
   AppCurrentPage,
-  AppRole,
   DuyuruAck,
   DuyuruState,
   GenelNot,
-  ManagedUser,
   Project,
   SessionPayload,
   YoneticiListe,
 } from './types';
 
+function initialSession(): SessionPayload | null {
+  return readSessionPayload();
+}
+
 export default function App() {
-  const [session, setSession] = useState<SessionPayload | null>(() => apiService.getSession());
+  const [session, setSession] = useState<SessionPayload | null>(() => initialSession());
   const [projects, setProjects] = useState<Project[]>([]);
   /** Proje / aşama / dashboard API yenileme tetikleyicisi */
   const [dataRefreshKey, setDataRefreshKey] = useState(0);
@@ -66,10 +70,9 @@ export default function App() {
     maviStageCount: 0,
     yesilDeliveredCount: 0,
   });
-  const [role, setRole] = useState<AppRole>(() => apiService.getSession()?.role ?? apiService.getRole());
   const [currentPage, setCurrentPage] = useState<AppCurrentPage>(() => {
-    const initialRole = apiService.getSession()?.role ?? apiService.getRole();
-    return apiService.getCurrentPage(initialRole);
+    const s = initialSession();
+    return apiService.getCurrentPage(s?.role ?? 'personel');
   });
   const [duyuru, setDuyuru] = useState<DuyuruState>({ text: '', revision: 1 });
   const [duyuruDraft, setDuyuruDraft] = useState<string>('');
@@ -87,13 +90,14 @@ export default function App() {
 
   const loadProjectsFromBackend = useCallback(async () => {
     try {
-      const mode = role === 'yonetici' && yoneticiListe === 'arsiv' ? 'archived' : 'active';
+      const r = session?.role ?? 'personel';
+      const mode = r === 'yonetici' && yoneticiListe === 'arsiv' ? 'archived' : 'active';
       const list = await fetchProjectsFromApi(mode);
       setProjects(list);
     } catch {
       setProjects([]);
     }
-  }, [role, yoneticiListe]);
+  }, [session?.role, yoneticiListe]);
 
   const loadDashboardStats = useCallback(async () => {
     try {
@@ -173,21 +177,6 @@ export default function App() {
     }
   }, [session]);
 
-  const ensureSessionBackendUserId = useCallback(
-    (users: readonly UserResponse[]) => {
-      setSession((prev) => {
-        if (!prev) return prev;
-        if (typeof prev.backendUserId === 'number' && Number.isFinite(prev.backendUserId)) return prev;
-        const u = users.find((x) => x.username.toLowerCase() === prev.userLabel.trim().toLowerCase());
-        if (!u) return prev;
-        const next = { ...prev, backendUserId: u.id };
-        apiService.setSession(next);
-        return next;
-      });
-    },
-    [setSession]
-  );
-
   useEffect(() => {
     if (!session) {
       setProjects([]);
@@ -200,9 +189,18 @@ export default function App() {
   }, [session, loadProjectsFromBackend, loadUsersFromBackend]);
 
   useEffect(() => {
-    if (!session) return;
-    if (backendUsers.length) ensureSessionBackendUserId(backendUsers);
-  }, [backendUsers, ensureSessionBackendUserId, session]);
+    const onAuthLost = () => {
+      clearAuth();
+      apiService.clearSession();
+      apiService.clearCurrentPage();
+      setSession(null);
+      setDetailProjectId(null);
+      setNoteDraft('');
+      setProjects([]);
+    };
+    window.addEventListener(AUTH_LOST_EVENT, onAuthLost);
+    return () => window.removeEventListener(AUTH_LOST_EVENT, onAuthLost);
+  }, []);
 
   const loadAnnouncementFromBackend = useCallback(async () => {
     try {
@@ -261,40 +259,13 @@ export default function App() {
     void loadMyTasksFromBackend();
   }, [session, currentPage, dataRefreshKey, loadMyTasksFromBackend]);
 
-  useEffect(() => {
-    apiService.setRole(role);
-  }, [role]);
-
   // duyuru / genel notlar artık backend üzerinden senkron; localStorage'a yazma.
 
   useEffect(() => {
-    const effectiveRole = session?.role ?? role;
-    if (effectiveRole !== 'yonetici' && currentPage === 'staffManagement') {
+    if (session?.role !== 'yonetici' && currentPage === 'staffManagement') {
       setCurrentPage('myTasks');
     }
-  }, [session?.role, role, currentPage]);
-
-  useEffect(() => {
-    setSession((prev) => {
-      if (!prev || prev.role === role) return prev;
-      const next = { ...prev, role };
-      apiService.setSession(next);
-      return next;
-    });
-  }, [role]);
-
-  const handleRoleChange = useCallback(
-    (nextRole: AppRole) => {
-      setRole(nextRole);
-      setSession((prev) => {
-        if (!prev) return prev;
-        const next = { ...prev, role: nextRole };
-        apiService.setSession(next);
-        return next;
-      });
-    },
-    []
-  );
+  }, [session?.role, currentPage]);
 
   useEffect(() => {
     if (!session) return;
@@ -309,22 +280,17 @@ export default function App() {
     [session?.role]
   );
 
-  const handleLogin = useCallback(
-    (payload: { userLabel: string; role: AppRole; backendUserId?: number | null }) => {
-    const sess: SessionPayload = {
-      userLabel: payload.userLabel.trim(),
-      role: payload.role,
-      backendUserId: payload.backendUserId ?? undefined,
-    };
+  const handleJwtLoggedIn = useCallback(() => {
+    const sess = readSessionPayload();
+    if (!sess) return;
     setSession(sess);
-    apiService.setSession(sess);
-    setRole(payload.role);
-    const page: AppCurrentPage = payload.role === 'yonetici' ? 'dashboard' : 'myTasks';
+    const page: AppCurrentPage = sess.role === 'yonetici' ? 'dashboard' : 'myTasks';
     setCurrentPage(page);
     apiService.setCurrentPage(page);
   }, []);
 
   const handleLogout = useCallback(() => {
+    clearAuth();
     apiService.clearSession();
     apiService.clearCurrentPage();
     setSession(null);
@@ -464,7 +430,7 @@ export default function App() {
 
   const handleStageOnayla = useCallback(
     async (stageId: string) => {
-      if (!detailProjectId || role !== 'yonetici') return;
+      if (!detailProjectId || session?.role !== 'yonetici') return;
       try {
         await approveStage(stageId);
         await refreshStagesForOpenProject(detailProjectId);
@@ -473,15 +439,15 @@ export default function App() {
         window.alert(e instanceof Error ? e.message : 'Onay başarısız');
       }
     },
-    [detailProjectId, role, refreshStagesForOpenProject]
+    [detailProjectId, session?.role, refreshStagesForOpenProject]
   );
 
   const handleDeleteStage = useCallback(
     (_stageId: string) => {
-      if (!detailProjectId || role !== 'yonetici') return;
+      if (!detailProjectId || session?.role !== 'yonetici') return;
       window.alert('Bu sürümde aşama silme için backend endpoint tanımlı değil.');
     },
-    [detailProjectId, role]
+    [detailProjectId, session?.role]
   );
 
   const handleSaveStageNote = useCallback(
@@ -521,7 +487,7 @@ export default function App() {
 
   const handleArchiveProject = useCallback(
     async (projectId: string) => {
-      if (role !== 'yonetici') return;
+      if (session?.role !== 'yonetici') return;
       if (!confirm('Bu projeyi arşive kaldırmak istiyor musunuz?')) return;
       try {
         await setProjectArchived(projectId, true);
@@ -531,12 +497,12 @@ export default function App() {
         window.alert(e instanceof Error ? e.message : 'Arşivleme başarısız');
       }
     },
-    [role, loadProjectsFromBackend]
+    [session?.role, loadProjectsFromBackend]
   );
 
   const handleMarkDelivered = useCallback(
     async (projectId: string) => {
-      if (role !== 'yonetici') return;
+      if (session?.role !== 'yonetici') return;
       try {
         await deliverProject(projectId);
         await loadProjectsFromBackend();
@@ -545,12 +511,12 @@ export default function App() {
         window.alert(e instanceof Error ? e.message : 'Teslim işlemi başarısız');
       }
     },
-    [role, loadProjectsFromBackend]
+    [session?.role, loadProjectsFromBackend]
   );
 
   const handleUnarchiveProject = useCallback(
     async (projectId: string) => {
-      if (role !== 'yonetici') return;
+      if (session?.role !== 'yonetici') return;
       try {
         await setProjectArchived(projectId, false);
         await loadProjectsFromBackend();
@@ -559,7 +525,7 @@ export default function App() {
         window.alert(e instanceof Error ? e.message : 'Arşivden çıkarma başarısız');
       }
     },
-    [role, loadProjectsFromBackend]
+    [session?.role, loadProjectsFromBackend]
   );
 
   const handleAddNote = useCallback(async () => {
@@ -605,7 +571,7 @@ export default function App() {
   const saveDuyuru = useCallback(async () => {
     const trimmed = duyuruDraft.trim();
     if (!trimmed) return;
-    if (role !== 'yonetici') return;
+    if (session?.role !== 'yonetici') return;
     if (session?.backendUserId == null) {
       window.alert('Bu işlem için backend kullanıcı ID gerekli.');
       return;
@@ -617,7 +583,7 @@ export default function App() {
     } catch (e) {
       window.alert(e instanceof Error ? e.message : 'Duyuru güncellenemedi');
     }
-  }, [duyuruDraft, loadAnnouncementFromBackend, role, session?.backendUserId]);
+  }, [duyuruDraft, loadAnnouncementFromBackend, session?.role, session?.backendUserId]);
 
   const handleDuyuruAck = useCallback(async () => {
     if (announcementId == null) return;
@@ -635,7 +601,7 @@ export default function App() {
   }, [announcementId, duyuru.revision, session?.backendUserId]);
 
   const handleGenelNotSend = useCallback(async () => {
-    if ((role !== 'personel' && role !== 'yonetici') || !genelNotDraft.trim()) return;
+    if ((session?.role !== 'personel' && session?.role !== 'yonetici') || !genelNotDraft.trim()) return;
     if (session?.backendUserId == null) {
       window.alert('Bu işlem için backend kullanıcı ID gerekli.');
       return;
@@ -648,12 +614,13 @@ export default function App() {
     } catch (e) {
       window.alert(e instanceof Error ? e.message : 'Genel not eklenemedi');
     }
-  }, [genelNotDraft, loadGeneralNotesFromBackend, role, session?.backendUserId]);
+  }, [genelNotDraft, loadGeneralNotesFromBackend, session?.role, session?.backendUserId]);
 
-  const listProjects = role === 'yonetici' ? (yoneticiListe === 'arsiv' ? archiveProjects : dashboardProjects) : dashboardProjects;
+  const listProjects =
+    session?.role === 'yonetici' ? (yoneticiListe === 'arsiv' ? archiveProjects : dashboardProjects) : dashboardProjects;
 
   if (!session) {
-    return <LoginScreen onLogin={handleLogin} />;
+    return <LoginScreen onLoggedIn={handleJwtLoggedIn} />;
   }
 
   const headerTitle =
@@ -667,7 +634,7 @@ export default function App() {
       ? 'Kullanıcıları yönetin • Mukavim Mühendislik'
       : currentPage === 'myTasks'
         ? 'Size atanan aşamalar • Mukavim Mühendislik'
-        : `Mukavim Mühendislik • ${role === 'yonetici' ? 'Yönetici' : 'Personel'} görünümü`;
+        : `Mukavim Mühendislik • ${session.role === 'yonetici' ? 'Yönetici' : 'Personel'} görünümü`;
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-navy-950 via-navy-900 to-slate-950 text-slate-100">
@@ -678,9 +645,7 @@ export default function App() {
       </div>
 
       <Sidebar
-        role={role}
         sessionRole={session.role}
-        onRoleChange={handleRoleChange}
         currentPage={currentPage}
         onPageChange={navigatePage}
         userLabel={session.userLabel}
@@ -695,7 +660,7 @@ export default function App() {
               <p className="text-xs text-slate-400">{headerSubtitle}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              {currentPage === 'dashboard' && role === 'yonetici' ? (
+              {currentPage === 'dashboard' && session.role === 'yonetici' ? (
                 <button
                   type="button"
                   onClick={() => setNewProjectOpen(true)}
@@ -720,11 +685,11 @@ export default function App() {
               <OfficeAnnouncement
                 text={duyuru.text}
                 revision={duyuru.revision}
-                canEdit={role === 'yonetici'}
+                canEdit={session.role === 'yonetici'}
                 draft={duyuruDraft}
                 onDraftChange={setDuyuruDraft}
                 onSave={saveDuyuru}
-                role={role}
+                role={session.role}
                 ackRevision={duyuruAck?.revision}
                 ackAt={duyuruAck?.at}
                 onAcknowledge={handleDuyuruAck}
@@ -759,7 +724,7 @@ export default function App() {
 
               <section className="grid grid-cols-1 gap-4 lg:grid-cols-12">
                 <div className="min-w-0 lg:col-span-8 space-y-2">
-                  {role === 'yonetici' ? (
+                  {session.role === 'yonetici' ? (
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Genel Proje Listesi</div>
                       <div className="flex rounded-2xl border border-white/10 bg-white/5 p-1">
@@ -791,13 +756,13 @@ export default function App() {
 
                   <ProjectTable
                     projects={listProjects}
-                    role={role}
-                    viewMode={role === 'yonetici' && yoneticiListe === 'arsiv' ? 'archive' : 'dashboard'}
+                    role={session.role}
+                    viewMode={session.role === 'yonetici' && yoneticiListe === 'arsiv' ? 'archive' : 'dashboard'}
                     onOpenDetail={openDetail}
-                    onMarkDelivered={role === 'yonetici' ? handleMarkDelivered : undefined}
-                    onArchive={role === 'yonetici' ? handleArchiveProject : undefined}
-                    onUnarchive={role === 'yonetici' ? handleUnarchiveProject : undefined}
-                    staffUserLabel={role === 'personel' ? session.userLabel : undefined}
+                    onMarkDelivered={session.role === 'yonetici' ? handleMarkDelivered : undefined}
+                    onArchive={session.role === 'yonetici' ? handleArchiveProject : undefined}
+                    onUnarchive={session.role === 'yonetici' ? handleUnarchiveProject : undefined}
+                    staffUserLabel={session.role === 'personel' ? session.userLabel : undefined}
                   />
                 </div>
 
@@ -822,7 +787,7 @@ export default function App() {
       <ProjectDetailModal
         open={Boolean(detailProjectId && detailProject)}
         project={detailProject}
-        role={role}
+        role={session.role}
         assignableUsers={assignableUsers}
         staffUserLabel={session.userLabel}
         onClose={closeDetail}

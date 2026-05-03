@@ -1,6 +1,6 @@
 import { withComputedProjectStatus } from '../lib/stage';
 import type { Project, ProjectDurum } from '../types';
-import { buildApiUrl } from './apiBase';
+import { apiFetch } from './apiClient';
 import { readApiErrorMessage } from './apiErrors';
 
 export type CreateProjectRequestBody = {
@@ -60,8 +60,7 @@ function listPath(mode: ProjectsListMode): string {
 }
 
 export async function fetchProjectsFromApi(mode: ProjectsListMode = 'all'): Promise<Project[]> {
-  const url = buildApiUrl(listPath(mode));
-  const res = await fetch(url);
+  const res = await apiFetch(listPath(mode));
   if (!res.ok) {
     throw new Error(await readApiErrorMessage(res));
   }
@@ -78,7 +77,6 @@ export async function fetchProjectsFromApi(mode: ProjectsListMode = 'all'): Prom
 }
 
 export async function createProject(body: CreateProjectRequestBody): Promise<void> {
-  const url = buildApiUrl('/projects');
   const payload: Record<string, string> = {
     companyName: body.companyName,
     name: body.name,
@@ -86,7 +84,7 @@ export async function createProject(body: CreateProjectRequestBody): Promise<voi
     endDate: body.endDate,
   };
   if (body.startDate?.trim()) payload.startDate = body.startDate.trim();
-  const res = await fetch(url, {
+  const res = await apiFetch('/projects', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -97,8 +95,7 @@ export async function createProject(body: CreateProjectRequestBody): Promise<voi
 }
 
 export async function deliverProject(projectId: string): Promise<Project> {
-  const url = buildApiUrl(`/projects/${encodeURIComponent(projectId)}/deliver`);
-  const res = await fetch(url, { method: 'PUT' });
+  const res = await apiFetch(`/projects/${encodeURIComponent(projectId)}/deliver`, { method: 'PUT' });
   if (!res.ok) {
     throw new Error(await readApiErrorMessage(res));
   }
@@ -109,10 +106,10 @@ export async function deliverProject(projectId: string): Promise<Project> {
 }
 
 export async function setProjectArchived(projectId: string, archived: boolean): Promise<Project> {
-  const url = buildApiUrl(
-    `/projects/${encodeURIComponent(projectId)}/archive?archived=${archived ? 'true' : 'false'}`
+  const res = await apiFetch(
+    `/projects/${encodeURIComponent(projectId)}/archive?archived=${archived ? 'true' : 'false'}`,
+    { method: 'PUT' }
   );
-  const res = await fetch(url, { method: 'PUT' });
   if (!res.ok) {
     throw new Error(await readApiErrorMessage(res));
   }

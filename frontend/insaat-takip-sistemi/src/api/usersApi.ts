@@ -1,4 +1,4 @@
-import { buildApiUrl } from './apiBase';
+import { apiFetch } from './apiClient';
 import { readApiErrorMessage } from './apiErrors';
 
 export type UserResponse = {
@@ -23,8 +23,7 @@ function isUser(v: unknown): v is UserResponse {
 }
 
 export async function fetchUsers(): Promise<UserResponse[]> {
-  const url = buildApiUrl('/users');
-  const res = await fetch(url);
+  const res = await apiFetch('/users');
   if (!res.ok) throw new Error(await readApiErrorMessage(res));
   const data: unknown = await res.json();
   if (!Array.isArray(data)) return [];
@@ -42,8 +41,7 @@ export type UserCreateRequest = {
 };
 
 export async function createUser(payload: UserCreateRequest): Promise<void> {
-  const url = buildApiUrl('/users');
-  const res = await fetch(url, {
+  const res = await apiFetch('/users', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

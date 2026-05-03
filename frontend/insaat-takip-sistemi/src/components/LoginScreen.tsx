@@ -1,62 +1,34 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { AppRole } from '../types';
-import { fetchUsers, type UserResponse } from '../api/usersApi';
-
-export default function LoginScreen({
-  onLogin,
-}: {
-  onLogin: (payload: { userLabel: string; role: AppRole; backendUserId?: number | null }) => void;
-}) {
-  const [users, setUsers] = useState<UserResponse[]>([]);
-  const [loadState, setLoadState] = useState<'loading' | 'ok' | 'error'>('loading');
-  const [loadError, setLoadError] = useState<string>('');
-
-  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+import { useState } from 'react';
+import { loginApi } from '../api/authApi';
+import * as apiService from '../api/apiService';
+export default function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const activeUsers = useMemo(() => users.filter((u) => u.active), [users]);
-  const selectedUser = useMemo(() => activeUsers.find((u) => u.id === selectedUserId) ?? null, [activeUsers, selectedUserId]);
-
-  function mapBackendRoleToAppRole(r: string): AppRole {
-    const key = r.trim().toUpperCase();
-    // tolerate different backend role naming
-    if (key === 'MANAGER' || key === 'ADMIN' || key === 'YONETICI') return 'yonetici';
-    return 'personel';
-  }
-
-  const derivedRole: AppRole = selectedUser ? mapBackendRoleToAppRole(selectedUser.role) : 'personel';
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoadState('loading');
-      setLoadError('');
-      try {
-        const list = await fetchUsers();
-        if (cancelled) return;
-        setUsers(list);
-        const active = list.filter((u) => u.active).sort((a, b) => a.displayName.localeCompare(b.displayName, 'tr'));
-        const first = active[0];
-        setSelectedUserId(first?.id ?? null);
-        setLoadState('ok');
-      } catch (e) {
-        if (cancelled) return;
-        setUsers([]);
-        setSelectedUserId(null);
-        setLoadState('error');
-        setLoadError(e instanceof Error ? e.message : 'Kullanıcılar yüklenemedi');
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedUser) return;
-    // userLabel is used across UI (assignment matching), so prefer displayName.
-    onLogin({ userLabel: selectedUser.displayName, role: derivedRole, backendUserId: selectedUser.id });
+    setError(null);
+    const u = username.trim();
+    if (!u || !password) {
+      setError('Kullanıcı adı ve şifre zorunludur.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const { token, user } = await loginApi(u, password);
+      apiService.clearSession();
+      apiService.clearCurrentPage();
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      onLoggedIn();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Giriş başarısız');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -77,7 +49,7 @@ export default function LoginScreen({
             </svg>
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-white">Mukavim Mühendislik</h1>
-          <p className="mt-2 text-sm text-slate-400">İş Takip Sistemi — Kurumsal giriş</p>
+          <p className="mt-2 text-sm text-slate-400">İş Takip Sistemi — Giriş</p>
         </div>
 
         <form
@@ -85,67 +57,42 @@ export default function LoginScreen({
           className="rounded-2xl border border-white/10 bg-navy-950/80 p-8 shadow-[0_24px_80px_-24px_rgba(0,0,0,0.6)] ring-1 ring-white/5 backdrop-blur-xl"
         >
           <label className="block">
-            <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Kullanıcı</span>
-            {loadState === 'error' ? (
-              <div className="mt-2 rounded-xl border border-red-400/25 bg-red-500/10 px-3 py-2 text-sm text-red-100">
-                {loadError || 'Kullanıcılar yüklenemedi'}
-                <div className="mt-1 text-xs text-red-100/70">Backend açık mı? `GET /users` çalışıyor mu?</div>
-              </div>
-            ) : (
-              <select
-                value={selectedUserId ?? ''}
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  const hit = activeUsers.find((u) => u.id === v) ?? null;
-                  setSelectedUserId(hit?.id ?? null);
-                }}
-                disabled={loadState !== 'ok' || activeUsers.length === 0}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white focus:border-sky-500/40 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-              >
-                {loadState !== 'ok' ? <option value="">Yükleniyor…</option> : null}
-                {loadState === 'ok' && activeUsers.length === 0 ? <option value="">Aktif kullanıcı yok</option> : null}
-                {loadState === 'ok'
-                  ? [...activeUsers]
-                      .sort((a, b) => a.displayName.localeCompare(b.displayName, 'tr'))
-                      .map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.displayName} ({u.username})
-                        </option>
-                      ))
-                  : null}
-              </select>
-            )}
+            <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Kullanıcı adı</span>
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoComplete="username"
+              className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-sky-500/40 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+              placeholder="ör. mustafa"
+            />
           </label>
-
-          <div className="mt-6">
-            <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Rol</span>
-            <div className="mt-2 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm font-semibold text-white">
-              {derivedRole === 'yonetici' ? 'Yönetici' : 'Personel'}
-            </div>
-          </div>
 
           <label className="mt-6 block">
             <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Şifre</span>
             <input
               type="password"
-              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
+              autoComplete="current-password"
               className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-sky-500/40 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+              placeholder="••••••••"
             />
           </label>
 
+          {error ? (
+            <p className="mt-4 rounded-xl border border-red-400/25 bg-red-500/10 px-3 py-2 text-sm text-red-100">{error}</p>
+          ) : null}
+
           <button
             type="submit"
-            disabled={!selectedUser || loadState !== 'ok'}
-            className="mt-8 w-full rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-900/30 ring-1 ring-white/10 transition hover:from-sky-500 hover:to-indigo-500"
+            disabled={submitting}
+            className="mt-8 w-full rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-900/30 ring-1 ring-white/10 transition hover:from-sky-500 hover:to-indigo-500 disabled:opacity-50"
           >
-            Giriş Yap
+            {submitting ? 'Giriş yapılıyor…' : 'Giriş Yap'}
           </button>
 
           <p className="mt-6 text-center text-[11px] leading-relaxed text-slate-500">
-            Demo ortamıdır; şifre doğrulaması yapılmaz. Kullanıcı listesi backend `GET /users` üzerinden gelir.
+            Kimlik bilgileri backend üzerinden doğrulanır. Oturum güvenliği için token kullanılır.
           </p>
         </form>
       </div>
