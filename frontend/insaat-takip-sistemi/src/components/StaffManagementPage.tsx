@@ -106,7 +106,7 @@ export default function StaffManagementPage({
               <input
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-navy-950/60 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-sky-500/50 focus:outline-none focus:ring-2 focus:ring-sky-500/25"
+                className="mt-2 w-full rounded-xl border border-sky-400/20 bg-sky-500/10 px-4 py-2.5 text-sm text-white placeholder:text-slate-400 focus:border-sky-400/60 focus:outline-none focus:ring-2 focus:ring-sky-500/30"
                 placeholder="Örn. Ahmet Usta"
                 autoComplete="name"
               />
@@ -118,7 +118,7 @@ export default function StaffManagementPage({
               <input
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-navy-950/60 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-sky-500/50 focus:outline-none focus:ring-2 focus:ring-sky-500/25"
+                className="mt-2 w-full rounded-xl border border-indigo-400/20 bg-indigo-500/10 px-4 py-2.5 text-sm text-white placeholder:text-slate-400 focus:border-indigo-400/60 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
                 placeholder="ör. ahmet"
                 autoComplete="username"
               />
@@ -129,7 +129,7 @@ export default function StaffManagementPage({
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-navy-950/60 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-sky-500/50 focus:outline-none focus:ring-2 focus:ring-sky-500/25"
+                className="mt-2 w-full rounded-xl border border-fuchsia-400/20 bg-fuchsia-500/10 px-4 py-2.5 text-sm text-white placeholder:text-slate-400 focus:border-fuchsia-400/60 focus:outline-none focus:ring-2 focus:ring-fuchsia-500/30"
                 placeholder="Geçici şifre"
                 autoComplete="new-password"
               />
@@ -139,7 +139,7 @@ export default function StaffManagementPage({
               <select
                 value={newRole}
                 onChange={(e) => setNewRole(e.target.value as UserCreateApiRole)}
-                className="mt-2 w-full cursor-pointer rounded-xl border border-white/10 bg-navy-950/80 px-4 py-2.5 text-sm text-white focus:border-sky-500/50 focus:outline-none focus:ring-2 focus:ring-sky-500/25"
+                className="mt-2 w-full cursor-pointer rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-4 py-2.5 text-sm text-white focus:border-emerald-400/60 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
               >
                 <option value="PERSONEL">Personel</option>
                 <option value="ADMIN">Yönetici</option>
@@ -196,8 +196,13 @@ export default function StaffManagementPage({
                   </td>
                 </tr>
               ) : null}
-              {sorted.map((u) => (
-                <tr key={u.id} className="border-b border-white/[0.06] text-slate-200 transition hover:bg-white/[0.03] last:border-0">
+              {sorted.map((u, i) => (
+                <tr
+                  key={u.id}
+                  className={`border-b border-white/[0.06] text-slate-200 transition hover:bg-white/[0.05] last:border-0 ${
+                    i % 2 === 0 ? 'bg-white/[0.02]' : 'bg-transparent'
+                  }`}
+                >
                   <td className="px-6 py-3.5 font-medium text-white">{u.displayName}</td>
                   <td className="px-6 py-3.5 font-mono text-xs text-slate-400">{u.username}</td>
                   <td className="px-6 py-3.5">

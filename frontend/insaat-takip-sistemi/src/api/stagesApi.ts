@@ -167,6 +167,13 @@ export async function createStage(
   return s;
 }
 
+export async function deleteStage(stageId: string): Promise<void> {
+  const res = await apiFetch(`/stages/${encodeURIComponent(stageId)}`, { method: 'DELETE' });
+  if (!res.ok) {
+    throw new Error(await readApiErrorMessage(res));
+  }
+}
+
 export async function assignUsersToStage(stageId: string, userIds: number[]): Promise<StageAssignmentApiRow[]> {
   const res = await apiFetch(`/stages/${encodeURIComponent(stageId)}/assign-users`, {
     method: 'PUT',

@@ -24,6 +24,7 @@ import {
   assignUsersToStage,
   completeStageAssignment,
   createStage,
+  deleteStage,
   fetchStagesByProjectId,
   mergeStagesWithPrevious,
   overlayStageFromAssignments,
@@ -38,8 +39,10 @@ import { addProjectNote, fetchProjectNotes } from './api/projectNotesApi';
 import { addGeneralNote, fetchGeneralNotes } from './api/generalNotesApi';
 import {
   acknowledgeAnnouncement,
+  fetchAnnouncementAcks,
   fetchAckStatus,
   fetchCurrentAnnouncement,
+  type AnnouncementAckRow,
   updateCurrentAnnouncement,
 } from './api/announcementsApi';
 import { AUTH_LOST_EVENT } from './api/apiClient';
@@ -86,6 +89,7 @@ export default function App() {
   const [newProjectOpen, setNewProjectOpen] = useState<boolean>(false);
   const [yoneticiListe, setYoneticiListe] = useState<YoneticiListe>('aktif');
   const [announcementId, setAnnouncementId] = useState<number | null>(null);
+  const [announcementReaders, setAnnouncementReaders] = useState<AnnouncementAckRow[]>([]);
   const [myTasksRows, setMyTasksRows] = useState<MyTaskRow[]>([]);
 
   const loadProjectsFromBackend = useCallback(async () => {
@@ -210,21 +214,24 @@ export default function App() {
         setDuyuru({ text: '', revision: 1 });
         setDuyuruDraft('');
         setDuyuruAck(null);
+        setAnnouncementReaders([]);
         return;
       }
       setAnnouncementId(current.id);
       setDuyuru({ text: current.message, revision: current.revision });
       setDuyuruDraft(current.message);
-      if (session?.backendUserId != null) {
-        const ok = await fetchAckStatus(current.id, session.backendUserId);
-        setDuyuruAck(ok ? { revision: current.revision, at: Date.now() } : null);
+      const ok = await fetchAckStatus(current.id);
+      setDuyuruAck(ok ? { revision: current.revision, at: Date.now() } : null);
+      if (session?.role === 'yonetici') {
+        const readers = await fetchAnnouncementAcks(current.id);
+        setAnnouncementReaders(readers);
       } else {
-        setDuyuruAck(null);
+        setAnnouncementReaders([]);
       }
     } catch (e) {
       window.alert(e instanceof Error ? e.message : 'Duyuru yüklenemedi');
     }
-  }, [session?.backendUserId]);
+  }, [session?.role]);
 
   const loadGeneralNotesFromBackend = useCallback(async () => {
     try {
@@ -443,11 +450,18 @@ export default function App() {
   );
 
   const handleDeleteStage = useCallback(
-    (_stageId: string) => {
+    async (stageId: string) => {
       if (!detailProjectId || session?.role !== 'yonetici') return;
-      window.alert('Bu sürümde aşama silme için backend endpoint tanımlı değil.');
+      if (!confirm('Bu asamayi silmek istiyor musunuz?')) return;
+      try {
+        await deleteStage(stageId);
+        await refreshStagesForOpenProject(detailProjectId);
+        setDataRefreshKey((k) => k + 1);
+      } catch (e) {
+        window.alert(e instanceof Error ? e.message : 'Asama silinemedi');
+      }
     },
-    [detailProjectId, session?.role]
+    [detailProjectId, refreshStagesForOpenProject, session?.role]
   );
 
   const handleSaveStageNote = useCallback(
@@ -572,33 +586,25 @@ export default function App() {
     const trimmed = duyuruDraft.trim();
     if (!trimmed) return;
     if (session?.role !== 'yonetici') return;
-    if (session?.backendUserId == null) {
-      window.alert('Bu işlem için backend kullanıcı ID gerekli.');
-      return;
-    }
     try {
-      await updateCurrentAnnouncement({ userId: session.backendUserId, message: trimmed });
+      await updateCurrentAnnouncement({ message: trimmed });
       await loadAnnouncementFromBackend();
       setDataRefreshKey((k) => k + 1);
     } catch (e) {
       window.alert(e instanceof Error ? e.message : 'Duyuru güncellenemedi');
     }
-  }, [duyuruDraft, loadAnnouncementFromBackend, session?.role, session?.backendUserId]);
+  }, [duyuruDraft, loadAnnouncementFromBackend, session?.role]);
 
   const handleDuyuruAck = useCallback(async () => {
     if (announcementId == null) return;
-    if (session?.backendUserId == null) {
-      window.alert('Bu işlem için backend kullanıcı ID gerekli.');
-      return;
-    }
     try {
-      await acknowledgeAnnouncement(announcementId, { userId: session.backendUserId });
-      const ok = await fetchAckStatus(announcementId, session.backendUserId);
+      await acknowledgeAnnouncement(announcementId);
+      const ok = await fetchAckStatus(announcementId);
       setDuyuruAck(ok ? { revision: duyuru.revision, at: Date.now() } : null);
     } catch (e) {
       window.alert(e instanceof Error ? e.message : 'Okundu bilgisi gönderilemedi');
     }
-  }, [announcementId, duyuru.revision, session?.backendUserId]);
+  }, [announcementId, duyuru.revision]);
 
   const handleGenelNotSend = useCallback(async () => {
     if ((session?.role !== 'personel' && session?.role !== 'yonetici') || !genelNotDraft.trim()) return;
@@ -693,6 +699,7 @@ export default function App() {
                 ackRevision={duyuruAck?.revision}
                 ackAt={duyuruAck?.at}
                 onAcknowledge={handleDuyuruAck}
+                readers={announcementReaders}
               />
 
               <section className="grid gap-3 sm:grid-cols-3">

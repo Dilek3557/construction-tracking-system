@@ -1,17 +1,16 @@
 package com.dilekkaraca.is_takip_sistemi_backend.announcement.controller;
 
-import com.dilekkaraca.is_takip_sistemi_backend.announcement.dto.AnnouncementAckRequest;
 import com.dilekkaraca.is_takip_sistemi_backend.announcement.dto.AnnouncementAckResponse;
 import com.dilekkaraca.is_takip_sistemi_backend.announcement.dto.OfficeAnnouncementResponse;
 import com.dilekkaraca.is_takip_sistemi_backend.announcement.dto.OfficeAnnouncementUpdateRequest;
-import com.dilekkaraca.is_takip_sistemi_backend.announcement.entity.AnnouncementAck;
-import com.dilekkaraca.is_takip_sistemi_backend.announcement.entity.OfficeAnnouncement;
 import com.dilekkaraca.is_takip_sistemi_backend.announcement.service.AnnouncementAckService;
 import com.dilekkaraca.is_takip_sistemi_backend.announcement.service.OfficeAnnouncementService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Optional;
 
 @RestController
@@ -26,33 +25,34 @@ public class OfficeAnnouncementController {
     public Optional<OfficeAnnouncementResponse> getCurrentAnnouncement() {
         return officeAnnouncementService.getCurrentAnnouncement();
     }
-
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/current")
     public OfficeAnnouncementResponse saveOrUpdateAnnouncement(
             @Valid @RequestBody OfficeAnnouncementUpdateRequest request
     ) {
-        return officeAnnouncementService.saveOrUpdateAnnouncement(
-                request.getUserId(),
+        return officeAnnouncementService.saveOrUpdateAnnouncementForCurrentUser(
                 request.getMessage()
         );
     }
 
     @PostMapping("/{announcementId}/ack")
     public AnnouncementAckResponse acknowledgeAnnouncement(
-            @PathVariable Long announcementId,
-            @Valid @RequestBody AnnouncementAckRequest request
+            @PathVariable Long announcementId
     ) {
-        return announcementAckService.acknowledgeAnnouncement(
-                announcementId,
-                request.getUserId()
-        );
+        return announcementAckService.acknowledgeAnnouncementForCurrentUser(announcementId);
     }
 
     @GetMapping("/{announcementId}/ack-status")
     public boolean hasUserReadCurrentRevision(
-            @PathVariable Long announcementId,
-            @RequestParam Long userId
+            @PathVariable Long announcementId
     ) {
-        return announcementAckService.hasUserReadCurrentRevision(announcementId, userId);
+        return announcementAckService.hasCurrentUserReadCurrentRevision(announcementId);
+    }
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/{announcementId}/acks")
+    public List<AnnouncementAckResponse> getAnnouncementAcks(
+            @PathVariable Long announcementId
+    ) {
+        return announcementAckService.getCurrentRevisionAcks(announcementId);
     }
 }

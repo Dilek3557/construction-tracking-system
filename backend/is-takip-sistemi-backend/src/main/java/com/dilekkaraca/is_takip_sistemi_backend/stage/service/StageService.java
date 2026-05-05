@@ -19,7 +19,9 @@ import com.dilekkaraca.is_takip_sistemi_backend.stage.repository.StageRepository
 import com.dilekkaraca.is_takip_sistemi_backend.user.entity.User;
 import com.dilekkaraca.is_takip_sistemi_backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -95,6 +97,24 @@ public class StageService {
                 .map(this::mapAssignmentToResponse)
                 .toList();
 
+    }
+    @Transactional
+    public void deleteStage(Long stageId) {
+        Stage stage = getStageById(stageId);
+        stageAssignmentRepository.deleteByStageId(stageId);
+        stageRepository.delete(stage);
+    }
+    
+    public StageAssignmentResponse completeAssignmentForCurrentUser(Long stageId, String completionNote) {
+
+        String username = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Kullanıcı bulunamadı"));
+
+        return completeMyAssignment(stageId, user.getId(), completionNote);
     }
     public StageAssignmentResponse completeMyAssignment(Long stageId, Long userId, String completionNote) {
         StageAssignment assignment = stageAssignmentRepository.findByStageIdAndUserId(stageId, userId)

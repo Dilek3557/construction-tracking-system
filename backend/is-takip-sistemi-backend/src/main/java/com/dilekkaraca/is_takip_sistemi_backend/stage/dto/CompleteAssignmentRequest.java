@@ -8,8 +8,6 @@ import lombok.Setter;
 @Setter
 public class CompleteAssignmentRequest {
 
-    @NotNull(message = "Kullanıcı id boş olamaz.")
-    private Long userId;
 
     private String completionNote;
 }

@@ -9,8 +9,7 @@ import lombok.Setter;
 @Setter
 public class OfficeAnnouncementUpdateRequest {
 
-    @NotNull(message = "Kullanıcı id boş olamaz.")
-    private Long userId;
+
 
     @NotBlank(message = "Duyuru mesajı boş olamaz.")
     private String message;

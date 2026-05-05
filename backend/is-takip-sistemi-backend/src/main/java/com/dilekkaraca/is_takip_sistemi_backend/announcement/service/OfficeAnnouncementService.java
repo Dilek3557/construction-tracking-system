@@ -7,6 +7,7 @@ import com.dilekkaraca.is_takip_sistemi_backend.exception.UserNotFoundException;
 import com.dilekkaraca.is_takip_sistemi_backend.user.entity.User;
 import com.dilekkaraca.is_takip_sistemi_backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,6 +54,18 @@ public class OfficeAnnouncementService {
         return mapToResponse(saved);
     }
 
+    @Transactional
+    public OfficeAnnouncementResponse saveOrUpdateAnnouncementForCurrentUser(String message) {
+
+        String username = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalStateException("Oturum kullanıcısı bulunamadı."));
+
+        return saveOrUpdateAnnouncement(user.getId(), message);
+    }
     private OfficeAnnouncementResponse mapToResponse(OfficeAnnouncement announcement) {
         return OfficeAnnouncementResponse.builder()
                 .id(announcement.getId())

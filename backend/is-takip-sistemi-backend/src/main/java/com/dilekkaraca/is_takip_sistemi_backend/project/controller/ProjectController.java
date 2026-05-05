@@ -5,6 +5,7 @@ import com.dilekkaraca.is_takip_sistemi_backend.project.dto.ProjectResponse;
 import com.dilekkaraca.is_takip_sistemi_backend.project.service.ProjectService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,6 +17,7 @@ public class ProjectController {
 
     private final ProjectService projectService;
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ProjectResponse createProject(@Valid @RequestBody ProjectCreateRequest request) {
         return projectService.createProject(request);
@@ -41,11 +43,13 @@ public class ProjectController {
         return projectService.getProjectByIdResponse(id);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}/deliver")
     public ProjectResponse deliverProject(@PathVariable Long id) {
         return projectService.deliverProject(id);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}/archive")
     public ProjectResponse archiveProject(
             @PathVariable Long id,

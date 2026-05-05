@@ -15,6 +15,7 @@ export default function OfficeAnnouncement({
   ackRevision,
   ackAt,
   onAcknowledge,
+  readers,
 }: {
   text: string;
   revision: number;
@@ -26,11 +27,25 @@ export default function OfficeAnnouncement({
   ackRevision?: number;
   ackAt?: number;
   onAcknowledge: () => void;
+  readers?: Array<{ userDisplayName: string; readAt?: string }>;
 }) {
   const [editorOpen, setEditorOpen] = useState(false);
   const isAdmin = role === 'yonetici';
   const isStaff = role === 'personel';
   const upToDate = typeof ackRevision === 'number' && ackRevision === revision;
+  const readersCount = readers?.length ?? 0;
+
+  function formatReadAt(value?: string): string {
+    if (!value) return '';
+    const t = Date.parse(value);
+    if (!Number.isFinite(t)) return '';
+    const d = new Date(t);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
+    return `${dd}.${mm} ${hh}:${mi}`;
+  }
 
   return (
     <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/15 to-white/[0.04] px-4 py-2 shadow-soft backdrop-blur-xl ring-1 ring-amber-400/25 [box-shadow:0_8px_40px_-12px_rgba(251,191,36,0.18)]">
@@ -43,14 +58,28 @@ export default function OfficeAnnouncement({
           </div>
           {isAdmin ? (
             <div className="mt-1 flex flex-wrap items-center gap-2">
-              {upToDate && ackAt ? (
+              {readersCount > 0 ? (
                 <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/35 bg-emerald-500/15 px-2.5 py-1 text-[11px] font-semibold text-emerald-100 ring-1 ring-emerald-400/30">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_2px_rgba(52,211,153,0.7)]" />
-                  Dilek okudu
+                  {readersCount} kisi okudu
                 </span>
               ) : (
-                <span className="text-[11px] text-amber-200/70">Henüz okunmadı / güncellendi.</span>
+                <span className="text-[11px] text-amber-200/70">Guncel duyuru henuz okunmadi.</span>
               )}
+            </div>
+          ) : null}
+          {isAdmin && (readers?.length ?? 0) > 0 ? (
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-200/85">
+              <span className="text-amber-200/80">Okuyanlar:</span>
+              {readers!.map((r) => (
+                <span
+                  key={`${r.userDisplayName}-${r.readAt ?? ''}`}
+                  className="rounded-md border border-white/10 bg-black/20 px-2 py-0.5"
+                >
+                  {r.userDisplayName}
+                  {formatReadAt(r.readAt) ? ` - ${formatReadAt(r.readAt)}` : ''}
+                </span>
+              ))}
             </div>
           ) : null}
         </div>

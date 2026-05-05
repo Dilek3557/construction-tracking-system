@@ -7,6 +7,7 @@ import com.dilekkaraca.is_takip_sistemi_backend.user.entity.User;
 import com.dilekkaraca.is_takip_sistemi_backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +20,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @PreAuthorize("hasRole('ADMIN')")
     public UserResponse createUser(UserCreateRequest request) {
         User user = User.builder()
                 .username(request.getUsername())
@@ -45,4 +47,5 @@ public class UserService {
                 .active(user.isActive())
                 .build();
     }
+
 }

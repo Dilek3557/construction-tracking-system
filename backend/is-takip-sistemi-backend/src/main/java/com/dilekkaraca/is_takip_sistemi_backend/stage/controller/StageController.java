@@ -5,6 +5,7 @@ import com.dilekkaraca.is_takip_sistemi_backend.stage.entity.StageAssignment;
 import com.dilekkaraca.is_takip_sistemi_backend.stage.service.StageService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,6 +17,7 @@ import java.util.List;
 public class StageController {
     private final StageService stageService;
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/project/{projectId}")
     public StageResponse createStage(
             @PathVariable Long projectId,
@@ -24,6 +26,11 @@ public class StageController {
         return stageService.createStage(projectId, request);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/{stageId}")
+    public void deleteStage(@PathVariable Long stageId) {
+        stageService.deleteStage(stageId);
+    }
     @GetMapping("/project/{projectId}")
     public List<StageResponse> getStagesByProjectId(@PathVariable Long projectId) {
         return stageService.getStagesByProjectId(projectId);
@@ -34,6 +41,7 @@ public class StageController {
         return stageService.getStageByIdResponse(stageId);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{stageId}/assign-users")
     public List<StageAssignmentResponse> assignUsersToStage(
             @PathVariable Long stageId,
@@ -42,18 +50,19 @@ public class StageController {
         return stageService.assignUsersToStage(stageId, request.getUserIds());
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'PERSONEL')")
     @PutMapping("/{stageId}/complete")
     public StageAssignmentResponse completeMyAssignment(
             @PathVariable Long stageId,
             @Valid @RequestBody CompleteAssignmentRequest request
     ) {
-        return stageService.completeMyAssignment(
+        return stageService.completeAssignmentForCurrentUser(
                 stageId,
-                request.getUserId(),
                 request.getCompletionNote()
         );
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{stageId}/approve")
     public StageResponse approveStage(@PathVariable Long stageId) {
         return stageService.approveStage(stageId);

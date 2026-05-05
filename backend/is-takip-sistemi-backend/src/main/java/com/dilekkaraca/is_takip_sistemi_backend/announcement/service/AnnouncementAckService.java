@@ -8,8 +8,11 @@ import com.dilekkaraca.is_takip_sistemi_backend.announcement.repository.OfficeAn
 import com.dilekkaraca.is_takip_sistemi_backend.user.entity.User;
 import com.dilekkaraca.is_takip_sistemi_backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -48,6 +51,19 @@ public class AnnouncementAckService {
 
         return mapToResponse(saved);
     }
+    @Transactional
+    public AnnouncementAckResponse acknowledgeAnnouncementForCurrentUser(Long announcementId) {
+
+        String username = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalStateException("Oturum kullanıcısı bulunamadı."));
+
+        return acknowledgeAnnouncement(announcementId, user.getId());
+    }
+
 
     public boolean hasUserReadCurrentRevision(Long announcementId, Long userId) {
 
@@ -60,6 +76,17 @@ public class AnnouncementAckService {
                 announcement.getRevision()
         );
     }
+    public boolean hasCurrentUserReadCurrentRevision(Long announcementId) {
+
+        String username = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalStateException("Oturum kullanıcısı bulunamadı."));
+
+        return hasUserReadCurrentRevision(announcementId, user.getId());
+    }
 
     private AnnouncementAckResponse mapToResponse(AnnouncementAck ack) {
         return AnnouncementAckResponse.builder()
@@ -70,5 +97,19 @@ public class AnnouncementAckService {
                 .revision(ack.getRevision())
                 .readAt(ack.getReadAt())
                 .build();
+    }
+    public List<AnnouncementAckResponse> getCurrentRevisionAcks(Long announcementId) {
+
+        OfficeAnnouncement announcement = officeAnnouncementRepository.findById(announcementId)
+                .orElseThrow(() -> new RuntimeException("Duyuru bulunamadı. Id: " + announcementId));
+
+        return announcementAckRepository
+                .findByAnnouncementIdAndRevisionOrderByReadAtDesc(
+                        announcement.getId(),
+                        announcement.getRevision()
+                )
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
     }
 }

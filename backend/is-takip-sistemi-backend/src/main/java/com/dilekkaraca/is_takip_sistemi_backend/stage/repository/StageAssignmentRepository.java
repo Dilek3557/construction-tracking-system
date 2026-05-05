@@ -1,7 +1,6 @@
 package com.dilekkaraca.is_takip_sistemi_backend.stage.repository;
 
 import com.dilekkaraca.is_takip_sistemi_backend.stage.entity.StageAssignment;
-import com.dilekkaraca.is_takip_sistemi_backend.stage.enums.StageStatus;
 import com.dilekkaraca.is_takip_sistemi_backend.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -18,4 +17,6 @@ public interface StageAssignmentRepository extends JpaRepository<StageAssignment
     boolean existsByStageIdAndUserId(Long stageId, Long userId);
 
     boolean existsByStageIdAndCompletedFalse(Long stageId);
+
+    void deleteByStageId(Long stageId);
 }
