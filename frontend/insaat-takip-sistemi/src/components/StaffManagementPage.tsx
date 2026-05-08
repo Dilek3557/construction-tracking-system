@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { UserResponse } from '../api/usersApi';
-import { createUser, type UserCreateApiRole } from '../api/usersApi';
+import { createUser, updateUserActive, type UserCreateApiRole } from '../api/usersApi';
 
 function formatRoleLabel(roleRaw: string): string {
   const k = roleRaw.trim().toUpperCase();
@@ -17,9 +17,11 @@ function formatRoleLabel(roleRaw: string): string {
 export default function StaffManagementPage({
   users,
   onReload,
+  currentUserId,
 }: {
   users: UserResponse[];
   onReload: () => Promise<void>;
+  currentUserId: number | null;
 }) {
   const [displayName, setDisplayName] = useState('');
   const [username, setUsername] = useState('');
@@ -30,6 +32,7 @@ export default function StaffManagementPage({
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitOk, setSubmitOk] = useState<string | null>(null);
+  const [activeSavingId, setActiveSavingId] = useState<number | null>(null);
 
   const sorted = useMemo(
     () => [...users].sort((a, b) => a.displayName.localeCompare(b.displayName, 'tr')),
@@ -85,6 +88,22 @@ export default function StaffManagementPage({
     } finally {
       setSubmitting(false);
       setListLoading(false);
+    }
+  }
+
+  async function handleToggleActive(u: UserResponse, nextActive: boolean) {
+    if (!nextActive && currentUserId != null && u.id === currentUserId) {
+      window.alert('Kendi hesabınızı pasifleştiremezsiniz.');
+      return;
+    }
+    setActiveSavingId(u.id);
+    try {
+      await updateUserActive(u.id, nextActive);
+      await onReload();
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Durum güncellenemedi');
+    } finally {
+      setActiveSavingId(null);
     }
   }
 
@@ -171,6 +190,10 @@ export default function StaffManagementPage({
             <p className="mt-0.5 text-xs text-slate-400">
               {listLoading ? 'Yükleniyor…' : `${sorted.length} kayıt • backend`}
             </p>
+            <p className="mt-2 max-w-2xl text-[11px] leading-relaxed text-slate-500">
+              Durum alanı veritabanında <span className="font-mono text-slate-400">users.active</span> sütunundadır.
+              Pasif kullanıcı giriş yapamaz. Kalıcı silme yok (projeler ve atamalar kullanıcıya bağlı olduğu için kayıtlar korunur).
+            </p>
           </div>
         </div>
 
@@ -186,12 +209,13 @@ export default function StaffManagementPage({
                 <th className="px-6 py-3.5 font-medium">Kullanıcı adı</th>
                 <th className="px-6 py-3.5 font-medium">Rol</th>
                 <th className="px-6 py-3.5 font-medium">Durum</th>
+                <th className="px-6 py-3.5 font-medium">İşlem</th>
               </tr>
             </thead>
             <tbody>
               {!listLoading && sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-sm text-slate-500">
+                  <td colSpan={5} className="px-6 py-12 text-center text-sm text-slate-500">
                     Henüz kayıtlı kullanıcı yok veya liste alınamadı.
                   </td>
                 </tr>
@@ -222,6 +246,20 @@ export default function StaffManagementPage({
                         Pasif
                       </span>
                     )}
+                  </td>
+                  <td className="px-6 py-3.5">
+                    <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-slate-300">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-white/20 bg-white/10 text-sky-600 focus:ring-sky-500/40"
+                        checked={u.active}
+                        disabled={activeSavingId === u.id}
+                        onChange={(e) => void handleToggleActive(u, e.target.checked)}
+                      />
+                      <span className="text-[11px] text-slate-500">
+                        {activeSavingId === u.id ? 'Kaydediliyor…' : u.active ? 'Aktif' : 'Pasif'}
+                      </span>
+                    </label>
                   </td>
                 </tr>
               ))}

@@ -1,5 +1,5 @@
 | Frontend’de gördüğün      | Backend karşılığı                        |
-| ------------------------- | ---------------------------------------- |
+|---------------------------|------------------------------------------|
 | Proje listesi             | `Project`                                |
 | Proje detay               | `Project` + `Stage`                      |
 | Aşama (Temel kazısı vs)   | `Stage`                                  |
@@ -14,11 +14,13 @@
 | Dashboard kritik kart     | `DashboardService.getCriticalProjects()` |
 | Dashboard onay bekleyen   | `StageRepository.countByStatus()`        |
 | Dashboard teslim edilen   | `ProjectRepository.countByStatus()`      |
+
 # 📌 İş Takip Sistemi (Backend)
 
 Bu proje, bir şirket içinde projelerin ve iş süreçlerinin takip edilmesi için geliştirilmiş bir backend uygulamasıdır.
 
 Amaç:
+
 - Projeleri yönetmek
 - Aşamaları takip etmek
 - Personel atamak
@@ -32,6 +34,7 @@ Amaç:
 ## Roller
 
 ### 👤 Yönetici
+
 - Proje oluşturur
 - Aşama (stage) ekler
 - Personel atar
@@ -40,6 +43,7 @@ Amaç:
 - Duyuru yayınlar
 
 ### 👷 Personel
+
 - Kendisine atanan işleri görür
 - İşi tamamladığını işaretler
 - Not bırakabilir
@@ -49,28 +53,35 @@ Amaç:
 # 🧱 Temel Yapı (Entities)
 
 ## 📁 Project
+
 - Proje bilgileri (isim, firma, nitelik, tarih)
 - Durum: ACTIVE / DELIVERED
 - Arşiv durumu
 
 ## 📁 Stage
+
 - Projenin alt aşamaları
 - Örn: Temel kazısı, beton dökme
 
 ## 📁 StageAssignment
+
 - Aşamaya atanan kişiler
 - "Bitti" durumu burada tutulur
 
 ## 📁 ProjectNote
+
 - Proje içindeki interaktif notlar (chat gibi)
 
 ## 📁 OfficeAnnouncement
+
 - Üstteki resmi duyuru
 
 ## 📁 AnnouncementAck
+
 - "Okudum" bilgisi
 
 ## 📁 GeneralNote
+
 - Alt taraftaki genel ofis notları
 
 ---
@@ -100,6 +111,7 @@ Amaç:
 # 📡 API Endpoints (Özet)
 
 ## Project
+
 - `POST /projects`
 - `GET /projects`
 - `GET /projects/active`
@@ -108,6 +120,7 @@ Amaç:
 - `PUT /projects/{id}/archive`
 
 ## Dashboard
+
 - `GET /dashboard/critical-projects`
 - `GET /dashboard/waiting-approval-stage-count`
 - `GET /dashboard/delivered-project-count`
@@ -124,6 +137,7 @@ Proje nitelik dağılımı:
 - Her türün sayısı hesaplanır
 
 Örnek:
+
 ```json
 [
   { "name": "Betonarme", "count": 5 },

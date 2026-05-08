@@ -54,3 +54,15 @@ export async function createUser(payload: UserCreateRequest): Promise<void> {
   if (!res.ok) throw new Error(await readApiErrorMessage(res));
 }
 
+export async function updateUserActive(userId: number, active: boolean): Promise<UserResponse> {
+  const res = await apiFetch(`/users/${encodeURIComponent(String(userId))}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ active }),
+  });
+  if (!res.ok) throw new Error(await readApiErrorMessage(res));
+  const data: unknown = await res.json();
+  if (!isUser(data)) throw new Error('Beklenmeyen kullanıcı yanıtı');
+  return data;
+}
+

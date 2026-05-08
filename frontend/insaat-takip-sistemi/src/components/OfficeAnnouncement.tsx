@@ -13,7 +13,6 @@ export default function OfficeAnnouncement({
   onDraftChange,
   role,
   ackRevision,
-  ackAt,
   onAcknowledge,
   readers,
 }: {

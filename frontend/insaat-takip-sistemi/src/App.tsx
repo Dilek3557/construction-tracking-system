@@ -685,7 +685,11 @@ export default function App() {
 
         <main className="mx-auto max-w-7xl space-y-3 px-4 py-3 sm:px-6 lg:px-8">
           {currentPage === 'staffManagement' && session.role === 'yonetici' ? (
-            <StaffManagementPage users={backendUsers} onReload={reloadUsersFromBackendStrict} />
+            <StaffManagementPage
+              users={backendUsers}
+              onReload={reloadUsersFromBackendStrict}
+              currentUserId={session?.backendUserId ?? null}
+            />
           ) : currentPage === 'dashboard' ? (
             <>
               <OfficeAnnouncement

@@ -93,7 +93,7 @@ export default function NewStageModal({
             <p className="mt-0.5 text-[11px] text-slate-500">Birden fazla seçebilirsiniz. Liste backend kullanıcılarından gelir.</p>
             {assignableUsers.length === 0 ? (
               <p className="mt-2 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-                Atanabilir aktif kullanıcı yok. Önce backend'e kullanıcı ekleyin.
+                Atanabilir aktif kullanıcı yok. Önce backend&apos;e kullanıcı ekleyin.
               </p>
             ) : (
               <>
