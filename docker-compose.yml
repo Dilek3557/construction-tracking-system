@@ -1,0 +1,32 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: is-takip-postgres
+    environment:
+      POSTGRES_DB: is_takip
+      POSTGRES_USER: postgres       # <-- Kullanıcı adın yine postgres
+      POSTGRES_PASSWORD: m123.123   # <-- Yeni şifren bu!
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend/is-takip-sistemi-backend
+    image: is-takip-backend
+    container_name: is-takip-backend
+    depends_on:
+      - postgres
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/is_takip
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: m123.123
+      JWT_SECRET: my-super-secret-key-123456789-dilek-2026
+      ALLOWED_ORIGINS: http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174
+
+volumes:
+  postgres_data:
