@@ -10,7 +10,8 @@ Bu belge teknik kurulum içindir. Genel tanıtım için [README.md](./README.md)
 |---------|---------|
 | Docker | `docker --version` |
 | Docker Compose | `docker compose version` |
-| Maven 17+ | `mvn -version` (backend JAR için) |
+| Java 17+ | `java -version` |
+| Maven | `mvn -version` |
 | Git (isteğe bağlı) | `git --version` |
 
 Proje kök dizini: `Mukavim_workspace_temiz` (içinde `docker-compose.yml` ve `.env` bulunur).

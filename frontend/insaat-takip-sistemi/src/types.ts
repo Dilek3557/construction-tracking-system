@@ -23,6 +23,8 @@ export type StageDurum = 'bekliyor' | 'mavi' | 'yesil';
 export interface ProjectNote {
   id: string;
   yazar: string;
+  /** Backend `authorUserId` — balon hizalaması için. */
+  authorUserId?: number;
   metin: string;
   zaman: number;
 }

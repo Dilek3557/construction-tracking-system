@@ -47,7 +47,13 @@ function buildConicGradient(rows: readonly ProjectTypeDistributionRow[]): string
   return `conic-gradient(from 0deg, ${parts.join(', ')})`;
 }
 
-export default function GlobalChart({ refreshKey = 0 }: { refreshKey?: number }) {
+export default function GlobalChart({
+  refreshKey = 0,
+  className = '',
+}: {
+  refreshKey?: number;
+  className?: string;
+}) {
   const [rows, setRows] = useState<ProjectTypeDistributionRow[]>([]);
   const [loadState, setLoadState] = useState<'loading' | 'ok' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = useState<string>('');
@@ -81,7 +87,9 @@ export default function GlobalChart({ refreshKey = 0 }: { refreshKey?: number })
   const total = useMemo(() => rows.reduce((s, r) => s + r.count, 0), [rows]);
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-blue-950/20 to-navy-950/40 p-3 shadow-soft backdrop-blur-xl ring-1 ring-blue-400/15 [box-shadow:0_12px_48px_-16px_rgba(59,130,246,0.15)]">
+    <div
+      className={`flex h-full min-h-[22rem] w-full flex-col rounded-2xl border border-white/10 bg-gradient-to-b from-blue-950/20 to-navy-950/40 p-4 shadow-soft backdrop-blur-xl ring-1 ring-blue-400/15 [box-shadow:0_12px_48px_-16px_rgba(59,130,246,0.15)] ${className}`}
+    >
       <div className="flex items-center justify-between">
         <div>
           <div className="text-sm font-semibold text-white">Nitelik Dağılımı</div>

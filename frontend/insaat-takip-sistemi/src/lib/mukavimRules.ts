@@ -55,7 +55,7 @@ export const DURUM_META = {
   },
 } as const;
 
-type ProjectVisualKey = 'yesil' | 'mavi' | 'kritik' | 'normal';
+type ProjectVisualKey = 'yesil' | 'mavi' | 'kritik' | 'hazir' | 'normal';
 
 function projectHasWaitingApproval(project: Pick<Project, 'durum' | 'stages'>): boolean {
   if (project.durum === 'mavi') return true;
@@ -98,10 +98,10 @@ export function getTableDurumVisual(project: Pick<Project, 'durum' | 'bitisTarih
   }
   if (project.durum === 'hazir') {
     return {
-      key: 'normal',
+      key: 'hazir',
       label: 'Teslime Hazır',
-      pill: DURUM_META.sari.pill,
-      dot: DURUM_META.sari.dot,
+      pill: DURUM_META.hazir.pill,
+      dot: DURUM_META.hazir.dot,
     };
   }
   return {
@@ -110,6 +110,23 @@ export function getTableDurumVisual(project: Pick<Project, 'durum' | 'bitisTarih
     pill: DURUM_META.sari.pill,
     dot: DURUM_META.sari.dot,
   };
+}
+
+/** Tablo satırı: duruma göre sol şerit + arka plan tonu */
+export function getTableRowAccent(project: Pick<Project, 'durum' | 'bitisTarihi' | 'stages'>): string {
+  const v = getTableDurumVisual(project);
+  switch (v.key) {
+    case 'yesil':
+      return 'border-l-[5px] border-l-emerald-400 bg-gradient-to-r from-emerald-950/50 via-emerald-950/20 to-transparent hover:from-emerald-950/65';
+    case 'mavi':
+      return 'border-l-[5px] border-l-blue-400 bg-gradient-to-r from-blue-950/55 via-blue-950/25 to-transparent hover:from-blue-950/70';
+    case 'kritik':
+      return 'border-l-[5px] border-l-red-500 bg-gradient-to-r from-red-950/55 via-red-950/30 to-transparent hover:from-red-950/70';
+    case 'hazir':
+      return 'border-l-[5px] border-l-cyan-400 bg-gradient-to-r from-cyan-950/50 via-cyan-950/22 to-transparent hover:from-cyan-950/65';
+    default:
+      return 'border-l-[5px] border-l-amber-400/90 bg-gradient-to-r from-amber-950/40 via-amber-950/15 to-transparent hover:from-amber-950/55';
+  }
 }
 
 export const ASAMA_DURUM_META = {

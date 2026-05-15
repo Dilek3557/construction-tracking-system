@@ -1,5 +1,6 @@
 import { apiFetch } from './apiClient';
 import { readApiErrorMessage } from './apiErrors';
+import type { ProjectNote } from '../types';
 
 export type ProjectNoteResponse = {
   id: number;
@@ -21,6 +22,16 @@ function isNote(v: unknown): v is ProjectNoteResponse {
     typeof o.message === 'string' &&
     typeof o.createdAt === 'string'
   );
+}
+
+export function mapApiNoteToProjectNote(n: ProjectNoteResponse): ProjectNote {
+  return {
+    id: String(n.id),
+    yazar: n.authorName,
+    authorUserId: n.authorUserId,
+    metin: n.message,
+    zaman: Number.isFinite(Date.parse(n.createdAt)) ? Date.parse(n.createdAt) : Date.now(),
+  };
 }
 
 export async function fetchProjectNotes(projectId: string): Promise<ProjectNoteResponse[]> {

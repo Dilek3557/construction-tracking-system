@@ -6,7 +6,21 @@ export type StageAssignmentApiRow = {
   userId?: number;
   userDisplayName?: string;
   completed?: boolean;
+  completionNote?: string;
 };
+
+function stageNoteFromApi(stageNote: string, assignments: readonly StageAssignmentApiRow[]): string {
+  const parts: string[] = [];
+  const base = stageNote.trim();
+  if (base) parts.push(base);
+  for (const a of assignments) {
+    const note = typeof a.completionNote === 'string' ? a.completionNote.trim() : '';
+    if (!note) continue;
+    const who = typeof a.userDisplayName === 'string' ? a.userDisplayName.trim() : '';
+    parts.push(who ? `${who}: ${note}` : note);
+  }
+  return [...new Set(parts)].join(' · ');
+}
 
 function mapBackendStageStatus(status: string): StageDurum {
   switch (status) {
@@ -45,6 +59,7 @@ function parseStageRow(raw: unknown): {
         userId: typeof a.userId === 'number' && Number.isFinite(a.userId) ? a.userId : undefined,
         userDisplayName: typeof a.userDisplayName === 'string' ? a.userDisplayName : undefined,
         completed: typeof a.completed === 'boolean' ? a.completed : undefined,
+        completionNote: typeof a.completionNote === 'string' ? a.completionNote : undefined,
       };
     });
   return {
@@ -84,7 +99,7 @@ export function stageFromApiRow(raw: unknown): Stage | null {
     sorumluUserIds: [...new Set(sorumluUserIds)],
     completedUserIds: [...new Set(completedUserIds)],
     durum: mapBackendStageStatus(p.status),
-    not: p.note,
+    not: stageNoteFromApi(p.note, p.assignedUsers),
   };
 }
 
@@ -127,6 +142,7 @@ export function overlayStageFromAssignments(stage: Stage, assignments: readonly 
     completedBy,
     sorumluUserIds: [...new Set(userIds)],
     completedUserIds: [...new Set(completedUserIds)],
+    not: stageNoteFromApi(stage.not, assignments),
   };
 }
 
@@ -190,13 +206,12 @@ export async function assignUsersToStage(stageId: string, userIds: number[]): Pr
 
 export async function completeStageAssignment(
   stageId: string,
-  body: { userId: number; completionNote: string }
+  body: { completionNote: string }
 ): Promise<void> {
   const res = await apiFetch(`/stages/${encodeURIComponent(stageId)}/complete`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      userId: body.userId,
       completionNote: body.completionNote,
     }),
   });

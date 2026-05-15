@@ -35,7 +35,7 @@ import {
   fetchWaitingApprovalStageCount,
 } from './api/dashboardApi';
 import { fetchUsers, type UserResponse } from './api/usersApi';
-import { addProjectNote, fetchProjectNotes } from './api/projectNotesApi';
+import { addProjectNote, fetchProjectNotes, mapApiNoteToProjectNote } from './api/projectNotesApi';
 import { addGeneralNote, fetchGeneralNotes } from './api/generalNotesApi';
 import {
   acknowledgeAnnouncement,
@@ -374,12 +374,7 @@ export default function App() {
           if (p.id !== id) return p;
           return {
             ...p,
-            notes: notes.map((n) => ({
-              id: String(n.id),
-              yazar: n.authorName,
-              metin: n.message,
-              zaman: Number.isFinite(Date.parse(n.createdAt)) ? Date.parse(n.createdAt) : Date.now(),
-            })),
+            notes: notes.map(mapApiNoteToProjectNote),
           };
         })
       );
@@ -413,26 +408,17 @@ export default function App() {
   );
 
   const handleStageBitti = useCallback(
-    async (stageId: string) => {
+    async (stageId: string, completionNote: string) => {
       if (!detailProjectId) return;
-      if (session?.backendUserId == null) {
-        window.alert(
-          'Bu oturum için backend kullanıcı ID tanımlı değil. Girişte mustafa / dilek / ahmet kullanın.'
-        );
-        return;
-      }
       try {
-        await completeStageAssignment(stageId, {
-          userId: session.backendUserId,
-          completionNote: '',
-        });
+        await completeStageAssignment(stageId, { completionNote });
         await refreshStagesForOpenProject(detailProjectId);
         setDataRefreshKey((k) => k + 1);
       } catch (e) {
         window.alert(e instanceof Error ? e.message : 'Kayıt başarısız');
       }
     },
-    [detailProjectId, session?.backendUserId, refreshStagesForOpenProject]
+    [detailProjectId, refreshStagesForOpenProject]
   );
 
   const handleStageOnayla = useCallback(
@@ -553,12 +539,7 @@ export default function App() {
       const notes = await fetchProjectNotes(detailProjectId);
       updateProjectById(detailProjectId, (p) => ({
         ...p,
-        notes: notes.map((n) => ({
-          id: String(n.id),
-          yazar: n.authorName,
-          metin: n.message,
-          zaman: Number.isFinite(Date.parse(n.createdAt)) ? Date.parse(n.createdAt) : Date.now(),
-        })),
+        notes: notes.map(mapApiNoteToProjectNote),
       }));
       setNoteDraft('');
     } catch (e) {
@@ -643,7 +624,7 @@ export default function App() {
         : `Mukavim Mühendislik • ${session.role === 'yonetici' ? 'Yönetici' : 'Personel'} görünümü`;
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-b from-navy-950 via-navy-900 to-slate-950 text-slate-100">
+    <div className="relative flex min-h-screen bg-gradient-to-b from-navy-950 via-[#0c1220] to-slate-950 text-slate-100">
       <div className="pointer-events-none fixed inset-0 opacity-70" aria-hidden>
         <div className="absolute -left-32 top-20 h-80 w-80 rounded-full bg-sky-500/25 blur-[100px]" />
         <div className="absolute right-0 top-1/3 h-96 w-96 rounded-full bg-cyan-400/15 blur-[110px]" />
@@ -658,9 +639,9 @@ export default function App() {
         onLogout={handleLogout}
       />
 
-      <div className="relative z-10 lg:ml-64">
-        <header className="sticky top-0 z-30 border-b border-white/10 bg-navy-950/70 px-4 py-4 backdrop-blur-md sm:px-6 lg:px-8">
-          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
+      <div className="relative z-10 flex min-h-screen min-w-0 flex-1 flex-col lg:ml-64">
+        <header className="sticky top-0 z-30 w-full border-b border-white/10 bg-navy-950/80 px-6 py-4 backdrop-blur-md">
+          <div className="flex w-full flex-wrap items-center justify-between gap-3">
             <div>
               <h1 className="text-lg font-semibold text-white">{headerTitle}</h1>
               <p className="text-xs text-slate-400">{headerSubtitle}</p>
@@ -683,7 +664,7 @@ export default function App() {
           </div>
         </header>
 
-        <main className="mx-auto max-w-7xl space-y-3 px-4 py-3 sm:px-6 lg:px-8">
+        <main className="w-full flex-1 space-y-6 bg-[#0a0f1a]/40 p-6">
           {currentPage === 'staffManagement' && session.role === 'yonetici' ? (
             <StaffManagementPage
               users={backendUsers}
@@ -733,11 +714,11 @@ export default function App() {
                 />
               </section>
 
-              <section className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-                <div className="min-w-0 lg:col-span-8 space-y-2">
+              <section className="grid w-full grid-cols-1 gap-5 xl:grid-cols-10">
+                <div className="min-w-0 space-y-2 xl:col-span-7">
                   {session.role === 'yonetici' ? (
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Genel Proje Listesi</div>
+                      <div className="text-sm font-bold uppercase tracking-wide text-slate-300">Genel Proje Listesi</div>
                       <div className="flex rounded-2xl border border-white/10 bg-white/5 p-1">
                         <button
                           type="button"
@@ -777,8 +758,8 @@ export default function App() {
                   />
                 </div>
 
-                <aside className="min-w-0 lg:col-span-4 lg:self-start">
-                  <GlobalChart refreshKey={dataRefreshKey} />
+                <aside className="min-w-0 xl:col-span-3 xl:self-stretch">
+                  <GlobalChart refreshKey={dataRefreshKey} className="h-full" />
                 </aside>
               </section>
 
@@ -801,6 +782,7 @@ export default function App() {
         role={session.role}
         assignableUsers={assignableUsers}
         staffUserLabel={session.userLabel}
+        currentUserId={session.backendUserId}
         onClose={closeDetail}
         onSorumlularChange={handleSorumlularChange}
         onStageBitti={handleStageBitti}

@@ -8,6 +8,7 @@ import { daysUntil } from '../lib/date';
 import { isKritikProje } from '../lib/mukavimRules';
 import type { AppRole, Project } from '../types';
 import type { AssignableUser } from './StageCard';
+import DataBadge from './DataBadge';
 
 export default function ProjectDetailModal({
   open,
@@ -25,15 +26,17 @@ export default function ProjectDetailModal({
   noteDraft,
   onNoteDraftChange,
   staffUserLabel,
+  currentUserId,
 }: {
   open: boolean;
   project: Project | null;
   role: AppRole;
   assignableUsers: readonly AssignableUser[];
   staffUserLabel?: string;
+  currentUserId?: number | null;
   onClose: () => void;
   onSorumlularChange: (stageId: string, userIds: number[]) => void;
-  onStageBitti: (stageId: string) => void;
+  onStageBitti: (stageId: string, completionNote: string) => void;
   onStageOnayla: (stageId: string) => void;
   onDeleteStage: (stageId: string) => void;
   onSaveStageNote: (projectId: string, stageId: string, note: string) => void;
@@ -45,10 +48,12 @@ export default function ProjectDetailModal({
   const [openNoteStageId, setOpenNoteStageId] = useState<string | null>(null);
   const [stageNoteDraft, setStageNoteDraft] = useState('');
   const [newStageOpen, setNewStageOpen] = useState(false);
+  const [selectedStageId, setSelectedStageId] = useState<string | null>(null);
 
   useEffect(() => {
     setOpenNoteStageId(null);
     setStageNoteDraft('');
+    setSelectedStageId(null);
   }, [project?.id]);
 
   if (!open || !project) return null;
@@ -96,8 +101,10 @@ export default function ProjectDetailModal({
                 Geri
               </button>
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                <h1 className="text-xl font-bold text-white break-words">{proj.isim}</h1>
-                <span className="rounded-xl border border-white/10 bg-white/5 px-2 py-1 text-sm text-slate-300">{proj.firmaAdi}</span>
+                <DataBadge size="lg" className="font-semibold text-white">
+                  {proj.isim}
+                </DataBadge>
+                <DataBadge size="md">{proj.firmaAdi}</DataBadge>
                 <NitelikTag nitelik={proj.nitelik} />
                 <DurumBadge durum={proj.durum} project={proj} />
               </div>
@@ -149,6 +156,11 @@ export default function ProjectDetailModal({
                           isPersonel={isPersonel}
                           assignableUsers={assignableUsers}
                           staffUserLabel={staffUserLabel}
+                          selected={selectedStageId === stage.id}
+                          dimmed={selectedStageId != null && selectedStageId !== stage.id}
+                          onSelect={() =>
+                            setSelectedStageId((prev) => (prev === stage.id ? null : stage.id))
+                          }
                           notePanelOpen={openNoteStageId === stage.id}
                           stageNoteDraft={openNoteStageId === stage.id ? stageNoteDraft : ''}
                           onSorumlularChange={(stageId, userIds) => onSorumlularChange(stageId, userIds)}
@@ -168,8 +180,8 @@ export default function ProjectDetailModal({
               <aside className="min-w-0 lg:col-span-4">
                 <ChatBox
                   notes={proj.notes ?? []}
-                  role={role === 'yonetici' ? 'admin' : 'staff'}
-                  staffDisplayName={staffUserLabel}
+                  currentUserId={currentUserId}
+                  currentUserLabel={staffUserLabel ?? (role === 'yonetici' ? 'Yönetici' : 'Personel')}
                   noteDraft={noteDraft}
                   onNoteDraftChange={onNoteDraftChange}
                   onSend={onAddNote}
