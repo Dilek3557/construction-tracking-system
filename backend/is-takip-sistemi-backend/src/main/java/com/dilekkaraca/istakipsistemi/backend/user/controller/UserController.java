@@ -1,5 +1,6 @@
 package com.dilekkaraca.istakipsistemi.backend.user.controller;
 
+import com.dilekkaraca.istakipsistemi.backend.auth.dto.ResetUserPasswordRequest;
 import com.dilekkaraca.istakipsistemi.backend.user.dto.UserActiveUpdateRequest;
 import com.dilekkaraca.istakipsistemi.backend.user.dto.UserCreateRequest;
 import com.dilekkaraca.istakipsistemi.backend.user.dto.UserResponse;
@@ -36,5 +37,13 @@ public class UserController {
             @RequestBody UserActiveUpdateRequest request
     ) {
         return userService.setUserActive(id, request.isActive());
+    }
+    @PutMapping("/{id}/password")
+    @PreAuthorize("hasRole('ADMIN')")
+    public void resetUserPassword(
+            @PathVariable Long id,
+            @Valid @RequestBody ResetUserPasswordRequest request
+    ) {
+        userService.resetUserPassword(id, request.getNewPassword());
     }
 }

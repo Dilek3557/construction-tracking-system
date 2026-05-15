@@ -13,17 +13,14 @@ export default function NewStageModal({
   onSubmit: (payload: { name: string; dueDate: string; userIds: number[] }) => void;
   assignableUsers: readonly AssignableUser[];
 }) {
-  const defaultAssigneeId = assignableUsers[0]?.id;
-  const [assignees, setAssignees] = useState<Set<number>>(() =>
-    defaultAssigneeId != null ? new Set([defaultAssigneeId]) : new Set()
-  );
+  /** Liste sırasına göre ilk kişiyi otomatik seçmeyin; yönetici her seferinde sorumlu seçsin. */
+  const [assignees, setAssignees] = useState<Set<number>>(() => new Set());
   const [query, setQuery] = useState('');
 
   useEffect(() => {
     if (!open) return;
     setQuery('');
-    const firstId = assignableUsers[0]?.id;
-    setAssignees(firstId != null ? new Set([firstId]) : new Set());
+    setAssignees(new Set());
   }, [open, assignableUsers]);
 
   const filteredStaff = useMemo(() => {
@@ -39,7 +36,6 @@ export default function NewStageModal({
     setAssignees((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
-        if (next.size <= 1) return next;
         next.delete(id);
       } else {
         next.add(id);
@@ -58,8 +54,7 @@ export default function NewStageModal({
     if (!name || !dueDate || !list.length) return;
     onSubmit({ name, dueDate, userIds: list });
     form.reset();
-    const firstId = assignableUsers[0]?.id;
-    setAssignees(firstId != null ? new Set([firstId]) : new Set());
+    setAssignees(new Set());
     setQuery('');
     onClose();
   }
@@ -90,7 +85,9 @@ export default function NewStageModal({
           </div>
           <div>
             <div className="text-xs text-slate-400">Sorumlular</div>
-            <p className="mt-0.5 text-[11px] text-slate-500">Birden fazla seçebilirsiniz. Liste backend kullanıcılarından gelir.</p>
+            <p className="mt-0.5 text-[11px] text-slate-500">
+              Birden fazla seçebilirsiniz. En az bir sorumlu işaretleyin. Liste backend kullanıcılarından gelir.
+            </p>
             {assignableUsers.length === 0 ? (
               <p className="mt-2 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
                 Atanabilir aktif kullanıcı yok. Önce backend&apos;e kullanıcı ekleyin.
@@ -136,7 +133,7 @@ export default function NewStageModal({
             </button>
             <button
               type="submit"
-              disabled={assignableUsers.length === 0}
+              disabled={assignableUsers.length === 0 || assignees.size === 0}
               className="rounded-xl bg-emerald-500/30 px-4 py-2 text-sm font-semibold text-emerald-50 ring-1 ring-emerald-400/30 hover:bg-emerald-500/40 disabled:pointer-events-none disabled:opacity-40"
             >
               Ekle

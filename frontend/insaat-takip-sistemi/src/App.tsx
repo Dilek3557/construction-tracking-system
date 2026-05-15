@@ -10,6 +10,7 @@ import NewProjectModal from './components/NewProjectModal';
 import LoginScreen from './components/LoginScreen';
 import MyTasksPage from './components/MyTasksPage';
 import StaffManagementPage from './components/StaffManagementPage';
+import ChangePasswordModal from './components/ChangePasswordModal';
 import { daysUntil } from './lib/date';
 import { withComputedProjectStatus } from './lib/stage';
 import type { MyTaskRow } from './lib/myTasks';
@@ -87,6 +88,7 @@ export default function App() {
   const [detailProjectId, setDetailProjectId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState<string>('');
   const [newProjectOpen, setNewProjectOpen] = useState<boolean>(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [yoneticiListe, setYoneticiListe] = useState<YoneticiListe>('aktif');
   const [announcementId, setAnnouncementId] = useState<number | null>(null);
   const [announcementReaders, setAnnouncementReaders] = useState<AnnouncementAckRow[]>([]);
@@ -637,6 +639,7 @@ export default function App() {
         onPageChange={navigatePage}
         userLabel={session.userLabel}
         onLogout={handleLogout}
+        onChangePassword={() => setChangePasswordOpen(true)}
       />
 
       <div className="relative z-10 flex min-h-screen min-w-0 flex-1 flex-col lg:ml-64">
@@ -796,6 +799,8 @@ export default function App() {
       />
 
       <NewProjectModal open={newProjectOpen} onClose={() => setNewProjectOpen(false)} onSubmit={handleAddProject} />
+
+      <ChangePasswordModal open={changePasswordOpen} onClose={() => setChangePasswordOpen(false)} />
     </div>
   );
 }

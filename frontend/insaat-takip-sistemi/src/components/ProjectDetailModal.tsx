@@ -4,6 +4,7 @@ import DurumBadge from './DurumBadge';
 import ChatBox from './ChatBox';
 import StageCard from './StageCard';
 import NewStageModal from './NewStageModal';
+import { getNoteTextForUser, mergeNoteForUser } from '../lib/stageNotes';
 import { daysUntil } from '../lib/date';
 import { isKritikProje } from '../lib/mukavimRules';
 import type { AppRole, Project } from '../types';
@@ -73,11 +74,16 @@ export default function ProjectDetailModal({
     }
     const s = (proj.stages ?? []).find((x) => x.id === stageId);
     setOpenNoteStageId(stageId);
-    setStageNoteDraft(s?.not ?? '');
+    setStageNoteDraft(staffUserLabel ? getNoteTextForUser(s?.not ?? '', staffUserLabel) : (s?.not ?? ''));
   }
 
   function handleSaveNoteClick(stageId: string) {
-    onSaveStageNote(proj.id, stageId, stageNoteDraft.trim());
+    const s = (proj.stages ?? []).find((x) => x.id === stageId);
+    const existing = s?.not ?? '';
+    const merged = staffUserLabel
+      ? mergeNoteForUser(existing, staffUserLabel, stageNoteDraft)
+      : stageNoteDraft.trim();
+    onSaveStageNote(proj.id, stageId, merged);
     setOpenNoteStageId(null);
     setStageNoteDraft('');
   }

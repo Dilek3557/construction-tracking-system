@@ -6,12 +6,14 @@ export default function Sidebar({
   onPageChange,
   userLabel,
   onLogout,
+  onChangePassword,
 }: {
   sessionRole: AppRole;
   currentPage: AppCurrentPage;
   onPageChange: (p: AppCurrentPage) => void;
   userLabel: string;
   onLogout: () => void;
+  onChangePassword: () => void;
 }) {
   const roleLabel = sessionRole === 'yonetici' ? 'Yönetici' : 'Personel';
 
@@ -77,9 +79,17 @@ export default function Sidebar({
       <div className="flex-1" />
 
       <div className="border-t border-white/10 p-3">
-        <div className="text-xs font-medium uppercase tracking-wider text-slate-500">Rol</div>
-        <div className="mt-2 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm font-semibold text-white">
-          {roleLabel}
+        <div className="text-xs font-medium uppercase tracking-wider text-slate-500">Hesap</div>
+        <button
+          type="button"
+          onClick={onChangePassword}
+          className="mt-2 flex w-full items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-left text-sm font-semibold text-slate-200 transition hover:bg-white/10 hover:text-white"
+        >
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/5 text-xs">🔒</span>
+          Şifre Değiştir
+        </button>
+        <div className="mt-2 text-xs text-slate-500">
+          Rol: <span className="font-semibold text-slate-300">{roleLabel}</span>
         </div>
       </div>
 

@@ -46,8 +46,20 @@ export default function OfficeAnnouncement({
     return `${dd}.${mm} ${hh}:${mi}`;
   }
 
+  const hasText = text.trim().length > 0;
+  /** Personel: bu revizyonu henüz okumadı. Yönetici: duyuru var ama henüz kimse okumadı (yeni duyuru vurgusu). */
+  const showNewDuyuruGlow =
+    hasText &&
+    ((isStaff && !upToDate) || (isAdmin && readersCount === 0));
+
   return (
-    <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/15 to-white/[0.04] px-4 py-2 shadow-soft backdrop-blur-xl ring-1 ring-amber-400/25 [box-shadow:0_8px_40px_-12px_rgba(251,191,36,0.18)]">
+    <div
+      className={`rounded-2xl border px-4 py-2 shadow-soft backdrop-blur-xl ring-1 transition-colors duration-300 motion-reduce:animate-none ${
+        showNewDuyuruGlow
+          ? 'animate-duyuru-alert border-amber-400/80 bg-gradient-to-br from-amber-500/25 to-amber-950/20 ring-amber-300/60 [box-shadow:0_8px_40px_-12px_rgba(251,191,36,0.35)]'
+          : 'border-amber-500/30 bg-gradient-to-br from-amber-500/15 to-white/[0.04] ring-amber-400/25 [box-shadow:0_8px_40px_-12px_rgba(251,191,36,0.18)]'
+      }`}
+    >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">

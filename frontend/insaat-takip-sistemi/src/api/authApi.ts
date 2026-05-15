@@ -1,3 +1,4 @@
+import { apiFetch } from './apiClient';
 import { buildApiUrl } from './apiBase';
 import { readApiErrorMessage } from './apiErrors';
 import type { AuthUserDto } from './authStorage';
@@ -24,4 +25,13 @@ export async function loginApi(username: string, password: string): Promise<Logi
   if (typeof token !== 'string' || !token.trim()) throw new Error('Geçersiz giriş yanıtı');
   if (!isAuthUser(o.user)) throw new Error('Geçersiz kullanıcı yanıtı');
   return { token: token.trim(), user: o.user };
+}
+
+export async function changeMyPassword(oldPassword: string, newPassword: string): Promise<void> {
+  const res = await apiFetch('/auth/me/password', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ oldPassword, newPassword }),
+  });
+  if (!res.ok) throw new Error(await readApiErrorMessage(res));
 }

@@ -19,6 +19,23 @@ export default {
       backdropBlur: {
         xs: '2px',
       },
+      keyframes: {
+        'duyuru-alert': {
+          '0%, 100%': {
+            boxShadow:
+              '0 0 18px -2px rgba(251, 191, 36, 0.45), 0 8px 36px -10px rgba(251, 191, 36, 0.25), inset 0 0 0 1px rgba(253, 224, 71, 0.12)',
+            borderColor: 'rgba(251, 191, 36, 0.45)',
+          },
+          '50%': {
+            boxShadow:
+              '0 0 36px 2px rgba(250, 204, 21, 0.65), 0 10px 44px -8px rgba(251, 191, 36, 0.5), inset 0 0 0 1px rgba(254, 243, 199, 0.35)',
+            borderColor: 'rgba(253, 224, 71, 0.95)',
+          },
+        },
+      },
+      animation: {
+        'duyuru-alert': 'duyuru-alert 1.35s ease-in-out infinite',
+      },
     },
   },
   plugins: [],

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { UserResponse } from '../api/usersApi';
 import { createUser, updateUserActive, type UserCreateApiRole } from '../api/usersApi';
+import ResetUserPasswordModal from './ResetUserPasswordModal';
 
 function formatRoleLabel(roleRaw: string): string {
   const k = roleRaw.trim().toUpperCase();
@@ -33,6 +34,7 @@ export default function StaffManagementPage({
   const [formError, setFormError] = useState<string | null>(null);
   const [submitOk, setSubmitOk] = useState<string | null>(null);
   const [activeSavingId, setActiveSavingId] = useState<number | null>(null);
+  const [resetUser, setResetUser] = useState<UserResponse | null>(null);
 
   const sorted = useMemo(
     () => [...users].sort((a, b) => a.displayName.localeCompare(b.displayName, 'tr')),
@@ -248,18 +250,27 @@ export default function StaffManagementPage({
                     )}
                   </td>
                   <td className="px-6 py-3.5">
-                    <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-slate-300">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-white/20 bg-white/10 text-sky-600 focus:ring-sky-500/40"
-                        checked={u.active}
-                        disabled={activeSavingId === u.id}
-                        onChange={(e) => void handleToggleActive(u, e.target.checked)}
-                      />
-                      <span className="text-[11px] text-slate-500">
-                        {activeSavingId === u.id ? 'Kaydediliyor…' : u.active ? 'Aktif' : 'Pasif'}
-                      </span>
-                    </label>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-slate-300">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-white/20 bg-white/10 text-sky-600 focus:ring-sky-500/40"
+                          checked={u.active}
+                          disabled={activeSavingId === u.id}
+                          onChange={(e) => void handleToggleActive(u, e.target.checked)}
+                        />
+                        <span className="text-[11px] text-slate-500">
+                          {activeSavingId === u.id ? 'Kaydediliyor…' : u.active ? 'Aktif' : 'Pasif'}
+                        </span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setResetUser(u)}
+                        className="rounded-lg border border-amber-400/30 bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-100 transition hover:bg-amber-500/25"
+                      >
+                        Şifre Sıfırla
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -267,6 +278,12 @@ export default function StaffManagementPage({
           </table>
         </div>
       </section>
+
+      <ResetUserPasswordModal
+        open={resetUser != null}
+        user={resetUser}
+        onClose={() => setResetUser(null)}
+      />
     </div>
   );
 }

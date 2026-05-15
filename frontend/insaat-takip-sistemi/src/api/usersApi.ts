@@ -66,3 +66,11 @@ export async function updateUserActive(userId: number, active: boolean): Promise
   return data;
 }
 
+export async function resetUserPassword(userId: number, newPassword: string): Promise<void> {
+  const res = await apiFetch(`/users/${encodeURIComponent(String(userId))}/password`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ newPassword }),
+  });
+  if (!res.ok) throw new Error(await readApiErrorMessage(res));
+}

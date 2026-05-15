@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
-import { parseCompletionNoteLines } from '../lib/stageNotes';
+import { getNoteTextForUser, parseCompletionNoteLines } from '../lib/stageNotes';
 import { NAME_ADMIN, normalizePersonName } from '../constants';
 import { getStageDurumVisual, isKritikStage } from '../lib/mukavimRules';
 import {
   adminCanApproveStage,
   adminCanMarkStageDone,
+  assigneeMatchesUser,
   canOpenStageNote,
   getStageAssignees,
   isStageAssignedToUser,
@@ -12,6 +13,7 @@ import {
 } from '../lib/stage';
 import type { Stage } from '../types';
 import AssigneeStatusList from './AssigneeStatusList';
+import { authorInitials, avatarToneForName } from '../lib/chatUi';
 
 export type AssignableUser = { id: number; displayName: string };
 
@@ -65,6 +67,12 @@ export default function StageCard({
   const hasSavedNote = savedNote.length > 0;
   const completionLines = parseCompletionNoteLines(savedNote);
   const prevSavedNote = useRef(savedNote);
+  const stageNoteThreadRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!notePanelOpen) return;
+    stageNoteThreadRef.current?.scrollTo({ top: stageNoteThreadRef.current.scrollHeight, behavior: 'smooth' });
+  }, [notePanelOpen, savedNote]);
 
   useEffect(() => {
     if (savedNote && savedNote !== prevSavedNote.current) {
@@ -282,7 +290,9 @@ export default function StageCard({
               <button
                 type="button"
                 onClick={() => {
-                  const completionNote = (notePanelOpen ? stageNoteDraft : stage.not).trim();
+                  const completionNote = (
+                    notePanelOpen ? stageNoteDraft : getNoteTextForUser(stage.not, staffUserLabel)
+                  ).trim();
                   onBitti(stage.id, completionNote);
                 }}
                 className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15"
@@ -321,13 +331,83 @@ export default function StageCard({
       >
         <div className="overflow-hidden">
           <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3 backdrop-blur-sm">
-            <label className="block text-xs text-slate-400">Aşama Notu</label>
+            <div className="text-xs text-slate-400">
+              Aşama notları
+              <span className="ml-1 font-normal text-slate-500">
+                (backend’e dokunmadan: tek metin içinde saklanır; baloncuklar sadece görünüm)
+              </span>
+            </div>
+            <p className="mt-0.5 text-[10px] text-slate-500">
+              Her satır <span className="font-mono text-slate-400">Ad: metin</span> biçiminde birleştirilir; yeni yazdığınız sadece sizin satırınız olur.
+            </p>
+
+            <div
+              ref={stageNoteThreadRef}
+              className="mt-2 max-h-48 min-h-[4.5rem] overflow-y-auto rounded-xl border border-white/10 bg-white/[0.03] p-2 [scrollbar-width:thin]"
+            >
+              {completionLines.length === 0 ? (
+                <p className="py-4 text-center text-[11px] text-slate-500">Henüz kayıtlı not yok. Aşağıdan ekleyin.</p>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {completionLines.map((line, idx) => {
+                    const author = line.author.trim() || 'Ortak not';
+                    const label = staffUserLabel?.trim() ?? '';
+                    const mine =
+                      Boolean(label) && Boolean(line.author.trim()) && assigneeMatchesUser(line.author, label);
+                    const tone = mine
+                      ? 'border-emerald-500/30 bg-emerald-500/15'
+                      : 'border-white/12 bg-white/[0.07]';
+                    const avatarClass = mine
+                      ? 'bg-emerald-500/25 text-emerald-50 ring-emerald-400/45'
+                      : avatarToneForName(author);
+                    return (
+                      <div
+                        key={`${author}-${idx}-${line.text.slice(0, 24)}`}
+                        className={`flex w-full flex-col gap-1 ${mine ? 'items-end' : 'items-start'}`}
+                      >
+                        <div className={`flex items-center gap-2 ${mine ? 'flex-row-reverse' : 'flex-row'}`}>
+                          <div
+                            className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-[10px] font-bold ring-2 ${avatarClass}`}
+                            title={author}
+                          >
+                            {authorInitials(author)}
+                          </div>
+                          <span className="max-w-[calc(100%-2rem)] truncate text-[10px] font-medium text-slate-500">
+                            {author}
+                            {mine ? (
+                              <span className="ml-1 rounded bg-emerald-500/20 px-1 py-0.5 text-[9px] text-emerald-200/90">
+                                Siz
+                              </span>
+                            ) : null}
+                          </span>
+                        </div>
+                        <div
+                          className={`w-full max-w-[94%] rounded-2xl border px-3 py-2 shadow-sm ${tone} ${
+                            mine ? 'rounded-br-md' : 'rounded-bl-md'
+                          }`}
+                        >
+                          <p className="whitespace-pre-wrap break-words text-xs leading-relaxed text-slate-100">{line.text}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <label className="mt-3 block text-xs text-slate-400">
+              {staffUserLabel?.trim() ? `${staffUserLabel.trim()} — notunuz` : 'Yeni not'}
+            </label>
             <textarea
               value={stageNoteDraft}
               onChange={(e) => onStageNoteDraftChange(e.target.value)}
               rows={2}
               className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-400/40"
-              placeholder="Aşama ile ilgili not..."
+              placeholder={
+                staffUserLabel?.trim()
+                  ? `${staffUserLabel.trim()} olarak not yazın…`
+                  : 'Aşama ile ilgili not...'
+              }
             />
             <button
               type="button"

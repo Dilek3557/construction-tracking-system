@@ -1,13 +1,16 @@
 package com.dilekkaraca.istakipsistemi.backend.auth.service;
 
+import com.dilekkaraca.istakipsistemi.backend.auth.dto.ChangeMyPasswordRequest;
 import com.dilekkaraca.istakipsistemi.backend.auth.dto.LoginRequest;
 import com.dilekkaraca.istakipsistemi.backend.auth.dto.LoginResponse;
 import com.dilekkaraca.istakipsistemi.backend.user.dto.UserResponse;
 import com.dilekkaraca.istakipsistemi.backend.user.entity.User;
 import com.dilekkaraca.istakipsistemi.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -42,6 +45,33 @@ public class AuthService {
                 .user(mapToUserResponse(user))
                 .build();
     }
+
+    @Transactional
+    public void changeMyPassword(ChangeMyPasswordRequest request) {
+
+        String username = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalStateException("Oturum kullanıcısı bulunamadı."));
+
+        boolean oldPasswordMatches = passwordEncoder.matches(
+                request.getOldPassword(),
+                user.getPasswordHash()
+        );
+
+        if (!oldPasswordMatches) {
+            throw new IllegalStateException("Eski şifre hatalı.");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+
+        userRepository.save(user);
+
+
+    }
+
 
     private UserResponse mapToUserResponse(User user) {
         return UserResponse.builder()
