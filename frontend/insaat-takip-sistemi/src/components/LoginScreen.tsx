@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { loginApi } from '../api/authApi';
 import * as apiService from '../api/apiService';
+
 export default function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -32,29 +33,29 @@ export default function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) 
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#030712] px-4 py-12 text-slate-100">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-navy-950 via-navy-900 to-slate-950 px-4 py-12 text-slate-100">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-24 top-0 h-96 w-96 rounded-full bg-sky-600/20 blur-[120px]" />
-        <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-indigo-600/15 blur-[100px]" />
-        <div className="absolute left-1/2 top-1/3 h-64 w-64 -translate-x-1/2 rounded-full bg-cyan-500/10 blur-[90px]" />
+        <div className="absolute -left-32 top-20 h-80 w-80 rounded-full bg-sky-500/25 blur-[100px]" />
+        <div className="absolute right-0 top-1/3 h-96 w-96 rounded-full bg-cyan-400/15 blur-[110px]" />
+        <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-indigo-500/20 blur-[90px]" />
       </div>
 
       <div className="relative z-10 w-full max-w-md">
-        <div className="mb-10 text-center">
-          <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-white/10 bg-white/5 shadow-[0_0_40px_-8px_rgba(56,189,248,0.35)] ring-1 ring-sky-500/20">
-            <svg viewBox="0 0 24 24" className="h-8 w-8 text-sky-300" fill="none" stroke="currentColor" strokeWidth="1.75">
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-xl border border-white/10 bg-white/10 shadow-neon ring-1 ring-sky-400/20">
+            <svg viewBox="0 0 24 24" className="h-8 w-8 text-sky-200" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M3 21h18" />
               <path d="M5 21V8l7-4 7 4v13" />
               <path d="M9 21v-8h6v8" />
             </svg>
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-white">Mukavim Mühendislik</h1>
+          <h1 className="text-2xl font-semibold tracking-wide text-white">Mukavim Mühendislik</h1>
           <p className="mt-2 text-sm text-slate-400">İş Takip Sistemi — Giriş</p>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="rounded-2xl border border-white/10 bg-navy-950/80 p-8 shadow-[0_24px_80px_-24px_rgba(0,0,0,0.6)] ring-1 ring-white/5 backdrop-blur-xl"
+          className="rounded-2xl border border-white/10 bg-navy-950/60 p-8 shadow-soft ring-1 ring-white/5 backdrop-blur-xl"
         >
           <label className="block">
             <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Kullanıcı adı</span>
@@ -86,7 +87,7 @@ export default function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }) 
           <button
             type="submit"
             disabled={submitting}
-            className="mt-8 w-full rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-900/30 ring-1 ring-white/10 transition hover:from-sky-500 hover:to-indigo-500 disabled:opacity-50"
+            className="mt-8 w-full rounded-xl border border-emerald-400/30 bg-gradient-to-r from-emerald-600/90 to-teal-600/90 py-3 text-sm font-semibold text-emerald-50 shadow-lg ring-1 ring-emerald-400/25 transition hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50"
           >
             {submitting ? 'Giriş yapılıyor…' : 'Giriş Yap'}
           </button>

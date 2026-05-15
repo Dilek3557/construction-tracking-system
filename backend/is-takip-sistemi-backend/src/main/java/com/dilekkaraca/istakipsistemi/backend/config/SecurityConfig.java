@@ -23,7 +23,7 @@ import java.util.Arrays;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-  @Value("${app.cors.allowed-origins}")
+    @Value("${app.cors.allowed-origins}")
     private String allowedOrigins;
 
     @Bean
@@ -45,6 +45,7 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();

@@ -22,7 +22,7 @@ public class DataInitializer implements CommandLineRunner {
         if (activeAdminCount > 0) {
             return;
         }
-        User admin=User.builder()
+        User admin = User.builder()
                 .username("Mustafa")
                 .displayName("YÖNETİCİ")
                 .passwordHash(passwordEncoder.encode("473529"))

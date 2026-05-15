@@ -2,31 +2,41 @@ services:
   postgres:
     image: postgres:16
     container_name: is-takip-postgres
-    environment:
-      POSTGRES_DB: is_takip
-      POSTGRES_USER: postgres       # <-- Kullanıcı adın yine postgres
-      POSTGRES_PASSWORD: m123.123   # <-- Yeni şifren bu!
+    restart: unless-stopped
+    env_file:
+      - .env
     ports:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
 
   backend:
     build:
       context: ./backend/is-takip-sistemi-backend
     image: is-takip-backend
     container_name: is-takip-backend
+    restart: unless-stopped
+    env_file:
+      - .env
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     ports:
       - "8080:8080"
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/is_takip
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: m123.123
-      JWT_SECRET: my-super-secret-key-123456789-dilek-2026
-      ALLOWED_ORIGINS: http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 120s
 
   frontend:
     build:
@@ -35,6 +45,7 @@ services:
         VITE_API_BASE_URL: http://localhost:8080
     image: is-takip-frontend
     container_name: is-takip-frontend
+    restart: unless-stopped
     depends_on:
       - backend
     ports:
