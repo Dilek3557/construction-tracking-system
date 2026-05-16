@@ -35,6 +35,7 @@ public class StageService {
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
 
+    @Transactional
     public StageResponse createStage(Long projectId, StageCreateRequest request) {
 
         Project project = projectRepository.findById(projectId)
@@ -54,6 +55,7 @@ public class StageService {
         return mapToResponse(saved);
     }
 
+    @Transactional(readOnly = true)
     public List<StageResponse> getStagesByProjectId(Long projectId) {
         return stageRepository.findByProjectId(projectId)
                 .stream()
@@ -67,11 +69,13 @@ public class StageService {
                 .orElseThrow(() -> new StageNotFoundException(stageId));
     }
 
+    @Transactional(readOnly = true)
     public StageResponse getStageByIdResponse(Long stageId) {
         Stage stage = getStageById(stageId);
         return mapToResponse(stage);
     }
 
+    @Transactional
     public List<StageAssignmentResponse> assignUsersToStage(Long stageId, List<Long> userIds) {
         Stage stage = getStageById(stageId);
         Project project = stage.getProject();
@@ -115,6 +119,7 @@ public class StageService {
         recomputeProjectStatus(project);
     }
 
+    @Transactional
     public StageAssignmentResponse completeAssignmentForCurrentUser(Long stageId, String completionNote) {
 
         String username = SecurityContextHolder.getContext()
@@ -131,6 +136,7 @@ public class StageService {
         return completeMyAssignment(stageId, user.getId(), completionNote);
     }
 
+    @Transactional
     public StageAssignmentResponse completeMyAssignment(Long stageId, Long userId, String completionNote) {
         StageAssignment assignment = stageAssignmentRepository.findByStageIdAndUserId(stageId, userId)
                 .orElseThrow(() -> new StageAssignmentNotFoundException(stageId, userId));
@@ -159,6 +165,7 @@ public class StageService {
         return mapAssignmentToResponse(savedAssignment);
     }
 
+    @Transactional
     public StageResponse approveStage(Long stageId) {
         Stage stage = getStageById(stageId);
 

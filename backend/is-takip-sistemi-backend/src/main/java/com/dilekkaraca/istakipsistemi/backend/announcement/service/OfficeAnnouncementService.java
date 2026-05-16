@@ -20,6 +20,7 @@ public class OfficeAnnouncementService {
     private final OfficeAnnouncementRepository officeAnnouncementRepository;
     private final UserRepository userRepository;
 
+    @Transactional(readOnly = true)
     public Optional<OfficeAnnouncementResponse> getCurrentAnnouncement() {
         return officeAnnouncementRepository.findTopByOrderByUpdatedAtDesc()
                 .map(this::mapToResponse);

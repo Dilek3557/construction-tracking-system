@@ -101,6 +101,7 @@ public class AnnouncementAckService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
     public List<AnnouncementAckResponse> getCurrentRevisionAcks(Long announcementId) {
 
         OfficeAnnouncement announcement = officeAnnouncementRepository.findById(announcementId)

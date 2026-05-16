@@ -43,6 +43,7 @@ public class ProjectNoteService {
         return mapToResponse(saved);
     }
 
+    @Transactional(readOnly = true)
     public List<ProjectNoteResponse> getNotesByProject(Long projectId) {
         return projectNoteRepository.findByProjectIdOrderByCreatedAtAsc(projectId)
                 .stream()

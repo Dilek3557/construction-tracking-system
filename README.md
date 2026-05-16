@@ -62,14 +62,17 @@ Durdurmak: `docker compose down`
 
 ## İlk Admin Kullanıcısı
 
-Veritabanında aktif admin yoksa otomatik oluşturulur (`DataInitializer`):
+Veritabanında aktif admin yoksa uygulama ilk açılışta otomatik admin oluşturur (`DataInitializer`).
 
-| Alan | Değer |
-|------|--------|
-| Kullanıcı adı | `Mustafa` |
-| Şifre | `473529` |
+İlk admin bilgileri `.env` dosyasındaki değerlerden alınır:
 
-İlk girişten sonra admin şifresinin değiştirilmesi önerilir.
+```env
+INITIAL_ADMIN_USERNAME=Mustafa
+INITIAL_ADMIN_DISPLAY_NAME=Yonetici
+INITIAL_ADMIN_PASSWORD=change-me
+```
+
+Kurulumdan sonra admin şifresinin değiştirilmesi önerilir.
 
 ## Health Check
 

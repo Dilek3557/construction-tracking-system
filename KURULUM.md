@@ -119,16 +119,19 @@ Frontend: http://localhost:5173 açılmalı.
 
 ## 7. İlk login (Admin)
 
-Veritabanında aktif **ADMIN** yoksa uygulama ilk açılışta otomatik kullanıcı oluşturur (`DataInitializer`):
+Veritabanında aktif **ADMIN** yoksa uygulama ilk açılışta otomatik admin oluşturur (`DataInitializer`).
 
-| Alan | Değer |
-|------|--------|
-| Kullanıcı adı | `Mustafa` |
-| Şifre | `473529` |
+İlk admin bilgileri `.env` dosyasındaki değerlerden alınır:
+
+```env
+INITIAL_ADMIN_USERNAME=Mustafa
+INITIAL_ADMIN_DISPLAY_NAME=Yonetici
+INITIAL_ADMIN_PASSWORD=change-me
+```
 
 1. http://localhost:5173 adresine gidin.  
-2. Yukarıdaki bilgilerle giriş yapın.  
-3. İlk girişten sonra admin şifresini değiştirmeniz önerilir.
+2. `.env` dosyasındaki kullanıcı adı ve şifreyle giriş yapın.  
+3. Kurulumdan sonra admin şifresinin değiştirilmesi önerilir.
 
 Zaten admin varsa bu adım tekrarlanmaz.
 

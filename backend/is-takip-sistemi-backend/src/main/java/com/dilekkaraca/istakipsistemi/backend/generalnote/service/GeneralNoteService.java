@@ -35,6 +35,7 @@ public class GeneralNoteService {
         return mapToResponse(saved);
     }
 
+    @Transactional(readOnly = true)
     public List<GeneralNoteResponse> getAllNotes() {
         return generalNoteRepository.findAllByOrderByCreatedAtDesc()
                 .stream()
