@@ -21,11 +21,7 @@ public class ProjectNoteController {
             @PathVariable Long projectId,
             @Valid @RequestBody ProjectNoteCreateRequest request
     ) {
-        return projectNoteService.addNote(
-                projectId,
-                request.getUserId(),
-                request.getMessage()
-        );
+        return projectNoteService.addNote(projectId, request.getMessage());
     }
 
     @GetMapping

@@ -20,10 +20,7 @@ public class GeneralNoteController {
     public GeneralNoteResponse addNote(
             @Valid @RequestBody GeneralNoteCreateRequest request
     ) {
-        return generalNoteService.addNote(
-                request.getUserId(),
-                request.getMessage()
-        );
+        return generalNoteService.addNote(request.getMessage());
     }
 
     @GetMapping

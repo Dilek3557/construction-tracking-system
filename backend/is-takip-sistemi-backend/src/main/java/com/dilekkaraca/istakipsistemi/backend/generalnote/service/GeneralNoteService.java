@@ -1,12 +1,12 @@
 package com.dilekkaraca.istakipsistemi.backend.generalnote.service;
 
-import com.dilekkaraca.istakipsistemi.backend.exception.UserNotFoundException;
 import com.dilekkaraca.istakipsistemi.backend.generalnote.dto.GeneralNoteResponse;
 import com.dilekkaraca.istakipsistemi.backend.generalnote.entity.GeneralNote;
 import com.dilekkaraca.istakipsistemi.backend.generalnote.repository.GeneralNoteRepository;
 import com.dilekkaraca.istakipsistemi.backend.user.entity.User;
 import com.dilekkaraca.istakipsistemi.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,10 +20,9 @@ public class GeneralNoteService {
     private final UserRepository userRepository;
 
     @Transactional
-    public GeneralNoteResponse addNote(Long userId, String message) {
+    public GeneralNoteResponse addNote(String message) {
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException(userId));
+        User user = resolveCurrentUser();
 
         GeneralNote note = GeneralNote.builder()
                 .author(user)
@@ -41,6 +40,15 @@ public class GeneralNoteService {
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
+    }
+
+    private User resolveCurrentUser() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            throw new IllegalStateException("Oturum kullanıcısı bulunamadı.");
+        }
+        return userRepository.findByUsername(auth.getName())
+                .orElseThrow(() -> new IllegalStateException("Oturum kullanıcısı bulunamadı."));
     }
 
     private GeneralNoteResponse mapToResponse(GeneralNote note) {

@@ -1,7 +1,6 @@
 package com.dilekkaraca.istakipsistemi.backend.project.service;
 
 import com.dilekkaraca.istakipsistemi.backend.exception.ProjectNotFoundException;
-import com.dilekkaraca.istakipsistemi.backend.exception.UserNotFoundException;
 import com.dilekkaraca.istakipsistemi.backend.project.dto.ProjectNoteResponse;
 import com.dilekkaraca.istakipsistemi.backend.project.entity.Project;
 import com.dilekkaraca.istakipsistemi.backend.project.entity.ProjectNote;
@@ -10,6 +9,7 @@ import com.dilekkaraca.istakipsistemi.backend.project.repository.ProjectReposito
 import com.dilekkaraca.istakipsistemi.backend.user.entity.User;
 import com.dilekkaraca.istakipsistemi.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,13 +24,12 @@ public class ProjectNoteService {
     private final UserRepository userRepository;
 
     @Transactional
-    public ProjectNoteResponse addNote(Long projectId, Long userId, String message) {
+    public ProjectNoteResponse addNote(Long projectId, String message) {
 
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new ProjectNotFoundException(projectId));
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException(userId));
+        User user = resolveCurrentUser();
 
         ProjectNote note = ProjectNote.builder()
                 .project(project)
@@ -49,6 +48,15 @@ public class ProjectNoteService {
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
+    }
+
+    private User resolveCurrentUser() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            throw new IllegalStateException("Oturum kullanıcısı bulunamadı.");
+        }
+        return userRepository.findByUsername(auth.getName())
+                .orElseThrow(() -> new IllegalStateException("Oturum kullanıcısı bulunamadı."));
     }
 
     private ProjectNoteResponse mapToResponse(ProjectNote note) {
